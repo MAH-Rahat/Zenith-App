@@ -9,6 +9,7 @@ import {
   brokerAgent,
   architectAgent,
   forgeAgent,
+  signalAgent,
 } from '../controllers/agentController';
 
 const router = Router();
@@ -105,6 +106,19 @@ router.post('/architect', authenticate, architectAgent);
  * Requirements: 53.6, 53.7, 64.2, 64.4
  */
 router.post('/forge', authenticate, forgeAgent);
+
+/**
+ * POST /api/agents/signal
+ * 
+ * SIGNAL agent endpoint - Market intelligence with web search grounding
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - previousSkillDemands: SkillDemand[] (optional) - Previous week's skill demand data for trend tracking
+ * 
+ * Requirements: 56.1-56.7, 57.1-57.5, 58.1-58.5, 59.1-59.5, 64.2, 64.4
+ */
+router.post('/signal', authenticate, signalAgent);
 
 /**
  * GET /api/agents/interactions

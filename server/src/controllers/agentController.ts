@@ -655,3 +655,86 @@ export const forgeAgent = async (
   }
 };
 
+
+/**
+ * POST /api/agents/signal
+ * 
+ * SIGNAL agent endpoint - Market intelligence with web search
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - previousSkillDemands: SkillDemand[] (optional) - Previous week's skill demand data for trend tracking
+ * 
+ * Requirements: 56.1-56.7, 57.1-57.5, 58.1-58.5, 59.1-59.5, 64.2, 64.4
+ */
+export const signalAgent = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const startTime = Date.now();
+    
+    // Validate request body
+    const { input, previousSkillDemands } = req.body;
+    
+    if (!input || typeof input !== 'string' || input.trim().length === 0) {
+      throw new AppError(400, 'INVALID_INPUT', 'Input text is required');
+    }
+    
+    if (previousSkillDemands && !Array.isArray(previousSkillDemands)) {
+      throw new AppError(400, 'INVALID_INPUT', 'previousSkillDemands must be an array');
+    }
+
+    // Get user ID from authenticated request (Requirement 64.4)
+    const userId = req.userId;
+    
+    if (!userId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+    }
+
+    console.log(`📡 Processing SIGNAL request for user ${userId}`);
+    console.log(`📊 Market intelligence query: ${input}`);
+
+    // Import SIGNAL agent
+    const { SignalAgent: SignalImpl } = await import('../services/agents/SignalAgent');
+
+    // Process through SIGNAL agent
+    const result = await SignalImpl.process({
+      userId,
+      userInput: input,
+      previousSkillDemands: previousSkillDemands || [],
+    });
+
+    const processingTimeMs = Date.now() - startTime;
+
+    // Log interaction to database (Requirement 64.4)
+    try {
+      await AgentInteraction.create({
+        userId,
+        agent: 'signal',
+        input,
+        output: result,
+        timestamp: new Date(),
+        processingTimeMs,
+      });
+      
+      console.log(`✅ SIGNAL interaction logged (${processingTimeMs}ms)`);
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Failed to log SIGNAL interaction:', logError);
+    }
+
+    // Return response
+    res.json({
+      success: true,
+      data: {
+        agent: 'SIGNAL',
+        result,
+        processingTimeMs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -376,21 +376,106 @@ export class ForgeAgent {
  * SIGNAL Agent - Market Intelligence
  * Handles job market research, salary data, opportunity discovery
  * 
- * Requirements: 40.9
+ * Requirements: 56.1-56.7, 57.1-57.5, 58.1-58.5, 59.1-59.5, 64.2, 64.4
  */
 export class SignalAgent {
   static async process(input: AgentInput): Promise<AgentOutput> {
-    // TODO: Implement full SIGNAL agent in Task 35
+    // Import the full SIGNAL implementation
+    const { SignalAgent: SignalImpl } = await import('./SignalAgent');
+    
+    // Parse context for market intelligence data
+    const signalInput = {
+      userId: input.userId,
+      userInput: input.input,
+      previousSkillDemands: input.context?.previousSkillDemands || [],
+    };
+
+    // Process through SIGNAL agent
+    const result = await SignalImpl.process(signalInput);
+
+    // Format response with industry analyst persona
+    const response = this.formatSignalResponse(result);
+
     return {
       agent: 'SIGNAL',
-      response: `[PLACEHOLDER] SIGNAL received: "${input.input}". Full implementation coming in Task 35.`,
-      data: {
-        market_trends: [],
-        salary_data: null,
-        opportunities: [],
-        industry_insights: '',
-      },
+      response,
+      data: result,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Format SIGNAL response with industry analyst persona
+   */
+  private static formatSignalResponse(data: any): string {
+    const parts: string[] = [];
+
+    // Top demanded skills
+    if (data.top_demanded_skills && data.top_demanded_skills.length > 0) {
+      parts.push('Top Demanded Skills:');
+      data.top_demanded_skills.slice(0, 5).forEach((skill: string, index: number) => {
+        parts.push(`${index + 1}. ${skill}`);
+      });
+    }
+
+    // Trending skills
+    if (data.trending_this_week && data.trending_this_week.length > 0) {
+      parts.push('\nTrending This Week:');
+      data.trending_this_week.forEach((trend: any) => {
+        parts.push(`- ${trend.skill}: +${trend.increase_percentage}% (${trend.current_mentions} mentions)`);
+      });
+    }
+
+    // Demand spike alert
+    if (data.alert) {
+      parts.push(`\n🚨 DEMAND SPIKE: ${data.alert.skill} (+${data.alert.increase_percentage}%)`);
+      parts.push('Recommended Resources:');
+      data.alert.recommended_resources.forEach((resource: string) => {
+        parts.push(`- ${resource}`);
+      });
+    }
+
+    // Bangladesh market insights
+    if (data.bangladesh_market_insights) {
+      const market = data.bangladesh_market_insights;
+      parts.push('\nBangladesh Market:');
+      parts.push(`- Full-Stack: ৳${this.formatBDT(market.salary_ranges.full_stack_min_bdt)}-${this.formatBDT(market.salary_ranges.full_stack_max_bdt)}`);
+      parts.push(`- AI/ML: ৳${this.formatBDT(market.salary_ranges.ai_ml_min_bdt)}-${this.formatBDT(market.salary_ranges.ai_ml_max_bdt)}`);
+      
+      if (market.top_hiring_companies && market.top_hiring_companies.length > 0) {
+        parts.push(`- Top Hiring: ${market.top_hiring_companies.slice(0, 3).join(', ')}`);
+      }
+    }
+
+    // High-value opportunities
+    if (data.opportunities && data.opportunities.length > 0) {
+      const highValue = data.opportunities.filter((opp: any) => opp.relevance_score >= 80);
+      if (highValue.length > 0) {
+        parts.push(`\nHigh-Value Opportunities: ${highValue.length}`);
+        highValue.slice(0, 3).forEach((opp: any) => {
+          parts.push(`- ${opp.title} (${opp.type}, ${opp.relevance_score}% match)`);
+        });
+      }
+    }
+
+    return parts.join('\n') || 'No market intelligence data available.';
+  }
+
+  /**
+   * Format BDT amount with Bangladeshi number formatting
+   */
+  private static formatBDT(amount: number): string {
+    const amountStr = Math.round(amount).toString();
+    
+    if (amountStr.length <= 3) {
+      return amountStr;
+    }
+
+    const lastThree = amountStr.slice(-3);
+    const remaining = amountStr.slice(0, -3);
+    
+    const formatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree;
+    
+    return formatted;
   }
 }
