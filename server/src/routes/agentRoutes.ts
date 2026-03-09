@@ -94,6 +94,23 @@ router.post('/broker', authenticate, brokerAgent);
 router.post('/architect', authenticate, architectAgent);
 
 /**
+ * POST /api/agents/architect/weekly-reflection
+ * 
+ * ARCHITECT Weekly Growth Report endpoint - Analyzes weekly reflection responses
+ * 
+ * Body:
+ * - accomplishments: string (required) - What was accomplished this week
+ * - avoided_tasks: string (required) - What tasks were avoided
+ * - learning: string (required) - What was learned
+ * - challenges: string (required) - What challenges were faced
+ * - next_week_priorities: string (required) - Priorities for next week
+ * - exp_delta: number (required) - EXP change from previous week
+ * 
+ * Requirements: 39.5, 39.6, 39.7
+ */
+router.post('/architect/weekly-reflection', authenticate, architectAgent);
+
+/**
  * POST /api/agents/forge
  * 
  * FORGE agent endpoint - Project accountability and GitHub tracking

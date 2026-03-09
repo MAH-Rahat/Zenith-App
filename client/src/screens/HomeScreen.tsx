@@ -1,48 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { BentoGrid, BentoCard, BentoRow } from '../components/BentoGrid';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { EXPTracker } from '../components/EXPTracker';
+import { HPDisplay } from '../components/HPDisplay';
+import { ContributionGrid } from '../components/ContributionGrid';
 import { ExamCountdown } from '../components/ExamCountdown';
-import { expSystem } from '../services/EXPSystem';
-import { hpSystem } from '../services/HPSystem';
-import { skillTree } from '../services/SkillTree';
+import { AgentFeedCard } from '../components/AgentFeedCard';
+import { GraduationWarRoom } from '../components/GraduationWarRoom';
 import { useTransitMode } from '../contexts/TransitModeContext';
+import { colors } from '../theme/colors';
+import { notificationService } from '../services/NotificationService';
+import { useFocusEffect } from '@react-navigation/native';
 
+/**
+ * HomeScreen - Player Dashboard
+ * 
+ * Main dashboard screen using Bento Grid layout.
+ * 
+ * Requirements:
+ * - 68.3: Display Bento dashboard with heatmap, EXP, HP, countdowns, agent feed
+ * - 5.1-5.7: Use Bento Grid layout system
+ * - 22.7-22.8: Transit Mode UI changes
+ * - 37.1: Graduation War Room button
+ */
 export const HomeScreen: React.FC = () => {
-  const [totalEXP, setTotalEXP] = useState(0);
-  const [currentLevel, setCurrentLevel] = useState(1);
-  const [currentRank, setCurrentRank] = useState('Script Novice');
-  const [currentHP, setCurrentHP] = useState(100);
-  const [overallProgress, setOverallProgress] = useState(0);
+  const [isWarRoomVisible, setIsWarRoomVisible] = useState(false);
   
   // Get Transit Mode state
   // Requirement 22.8: Display "TRANSIT MODE ACTIVE" badge in caution color (#FFB800)
   const { isTransitModeActive } = useTransitMode();
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
-    try {
-      const exp = await expSystem.getTotalEXP();
-      const level = await expSystem.getCurrentLevel();
-      const rank = await expSystem.getCurrentRank();
-      const hp = await hpSystem.getCurrentHP();
+  // Clear notifications when screen is focused
+  // Requirement 63.6: Clear notifications when user views relevant content
+  useFocusEffect(
+    React.useCallback(() => {
+      // Clear exam countdown and transit mode notifications when Home screen is viewed
+      notificationService.clearNotificationsByType('exam_countdown');
+      notificationService.clearNotificationsByType('transit_mode');
       
-      // Calculate overall progress
-      const allNodes = await skillTree.getAllNodes();
-      const completedNodes = allNodes.filter(node => node.completionPercentage === 100).length;
-      const progress = allNodes.length > 0 ? (completedNodes / allNodes.length) * 100 : 0;
-
-      setTotalEXP(exp);
-      setCurrentLevel(level);
-      setCurrentRank(rank);
-      setCurrentHP(hp);
-      setOverallProgress(progress);
-    } catch (error) {
-      console.error('Failed to load user data:', error);
-    }
-  };
+      return () => {
+        // Cleanup if needed
+      };
+    }, [])
+  );
 
   return (
     <ScrollView 
@@ -56,7 +57,7 @@ export const HomeScreen: React.FC = () => {
       {/* Hero Section */}
       <View style={styles.hero}>
         <Text style={styles.appName}>ZENITH</Text>
-        <Text style={styles.tagline}>FULL STACK AI ENGINEER PROTOCOL</Text>
+        <Text style={styles.tagline}>DEVELOPER OPERATING SYSTEM</Text>
         
         {/* Transit Mode Badge */}
         {/* Requirement 22.8: Display "TRANSIT MODE ACTIVE" badge in caution color (#FFB800) */}
@@ -67,95 +68,65 @@ export const HomeScreen: React.FC = () => {
         )}
       </View>
       
-      {/* Bento Grid */}
-      <View style={styles.bentoGrid}>
-        {/* Large Countdown Card */}
-        <View style={styles.bentoLarge}>
+      {/* Bento Grid Layout - Requirement 68.3 */}
+      <BentoGrid gap={16}>
+        {/* Large Countdown Card - Requirement 10.1-10.4 */}
+        <BentoCard span={12}>
           <CountdownTimer />
-        </View>
+        </BentoCard>
         
-        {/* Identity Block - Rank and Level */}
-        <View style={styles.bentoRow}>
-          <View style={styles.bentoSmall}>
-            <Text style={styles.bentoLabel}>RANK</Text>
-            <Text style={styles.bentoValue}>{currentRank.toUpperCase()}</Text>
-            <Text style={styles.bentoSubtext}>Level {currentLevel}</Text>
-          </View>
+        {/* EXP Tracker and HP Display Row - Requirement 68.3 */}
+        <BentoRow gap={16}>
+          <BentoCard span={6}>
+            <EXPTracker />
+          </BentoCard>
           
-          <View style={styles.bentoSmall}>
-            <Text style={styles.bentoLabel}>TOTAL EXP</Text>
-            <Text style={styles.bentoValueNeon}>{totalEXP}</Text>
-            <Text style={styles.bentoSubtext}>{totalEXP % 100}/100 to next level</Text>
-          </View>
-        </View>
+          <BentoCard span={6}>
+            <HPDisplay />
+          </BentoCard>
+        </BentoRow>
 
-        {/* HP and Progress */}
-        <View style={styles.bentoRow}>
-          <View style={styles.bentoSmall}>
-            <Text style={styles.bentoLabel}>HEALTH POINTS</Text>
-            <Text style={[styles.bentoValueNeon, { color: currentHP > 50 ? '#00ff00' : '#FF0000' }]}>
-              {currentHP}
-            </Text>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${currentHP}%`, backgroundColor: currentHP > 50 ? '#00ff00' : '#FF0000' }]} />
-            </View>
-          </View>
-          
-          <View style={styles.bentoSmall}>
-            <Text style={styles.bentoLabel}>ROADMAP</Text>
-            <Text style={styles.bentoValueNeon}>{overallProgress.toFixed(0)}%</Text>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${overallProgress}%` }]} />
-            </View>
-          </View>
-        </View>
-        
-        {/* Mission Brief Card */}
-        <View style={styles.bentoMedium}>
-          <View style={styles.glassHeader}>
-            <Text style={styles.bentoTitle}>⚡ MISSION BRIEF</Text>
-          </View>
-          <Text style={styles.bentoDescription}>
-            Master the complete AI engineering stack from MERN foundations through Docker, Python AI frameworks, to advanced ML with TensorFlow and PyTorch.
-          </Text>
-        </View>
-        
-        {/* System Status Card */}
-        <View style={styles.bentoMedium}>
-          <View style={styles.glassHeader}>
-            <Text style={styles.bentoTitle}>🔥 SYSTEM STATUS</Text>
-          </View>
-          <View style={styles.statusGrid}>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>SENTINEL</Text>
-              <View style={styles.statusBadgeActive}>
-                <Text style={styles.statusBadgeText}>ACTIVE</Text>
-              </View>
-            </View>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>RESET</Text>
-              <Text style={styles.statusValue}>00:00 UTC</Text>
-            </View>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>ALERT</Text>
-              <Text style={styles.statusValue}>21:00</Text>
-            </View>
-          </View>
-        </View>
+        {/* Contribution Grid (90-day heatmap) - Requirement 68.3 */}
+        <BentoCard span={12}>
+          <ContributionGrid 
+            onCellTap={(date, dailyEXP, quests) => {
+              console.log(`Cell tapped: ${date}, EXP: ${dailyEXP}, Quests: ${quests.length}`);
+            }}
+          />
+        </BentoCard>
 
-        {/* Exam Countdown Widgets */}
-        <View style={styles.bentoLarge}>
-          <View style={styles.glassHeader}>
-            <Text style={styles.bentoTitle}>📚 EXAM COUNTDOWN</Text>
-          </View>
+        {/* Exam Countdown Widgets (4 courses) - Requirement 68.3 */}
+        <BentoCard span={12}>
           <ExamCountdown 
             onExamCritical={(examName, daysRemaining) => {
               console.log(`Exam ${examName} is critical: ${daysRemaining} days remaining`);
               // TODO: Trigger push notification and auto-generate study quests
             }}
           />
-        </View>
-      </View>
+        </BentoCard>
+
+        {/* Agent Feed Card - Requirement 68.3 */}
+        <BentoCard span={12}>
+          <AgentFeedCard maxMessages={3} />
+        </BentoCard>
+
+        {/* Graduation War Room Button - Requirement 68.3, 37.1 */}
+        <TouchableOpacity
+          style={styles.warRoomButton}
+          onPress={() => setIsWarRoomVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.warRoomButtonIcon}>🎯</Text>
+          <Text style={styles.warRoomButtonText}>GRADUATION WAR ROOM</Text>
+          <Text style={styles.warRoomButtonSubtext}>Career Readiness Tracking</Text>
+        </TouchableOpacity>
+      </BentoGrid>
+
+      {/* Graduation War Room Modal */}
+      <GraduationWarRoom
+        visible={isWarRoomVisible}
+        onClose={() => setIsWarRoomVisible(false)}
+      />
     </ScrollView>
   );
 };
@@ -163,11 +134,11 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void, // Requirement 3.3: void for screen backgrounds
   },
   containerTransitMode: {
-    // Requirement 22.7: Shift surface color to surface-raised (#161616) during Transit Mode
-    backgroundColor: '#161616',
+    // Requirement 22.7: Shift surface color to surface-raised during Transit Mode
+    backgroundColor: colors.surfaceRaised,
   },
   content: {
     padding: 20,
@@ -180,143 +151,55 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 48,
     fontWeight: '900',
-    color: '#FF0000',
+    color: colors.active, // Requirement 3.9: active for interactive elements
     letterSpacing: 8,
     marginBottom: 8,
   },
   tagline: {
     fontSize: 10,
-    color: '#666666',
+    color: colors.textSecondary,
     letterSpacing: 2,
     fontWeight: '700',
   },
   transitModeBadge: {
-    // Requirement 22.8: Display "TRANSIT MODE ACTIVE" badge in caution color (#FFB800)
-    backgroundColor: '#FFB80020',
+    // Requirement 22.8: Display "TRANSIT MODE ACTIVE" badge in caution color
+    backgroundColor: `${colors.caution}20`,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 9999,
     borderWidth: 1,
-    borderColor: '#FFB800',
+    borderColor: colors.caution, // Requirement 3.10: caution for attention states
     marginTop: 16,
   },
   transitModeBadgeText: {
-    color: '#FFB800',
+    color: colors.caution,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.5,
   },
-  bentoGrid: {
-    gap: 16,
-  },
-  bentoLarge: {
-    backgroundColor: '#0a0a0a',
+  warRoomButton: {
+    backgroundColor: colors.surface, // Requirement 3.4: surface for card backgrounds
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-    overflow: 'hidden',
+    padding: 24,
+    borderWidth: 2,
+    borderColor: colors.active, // Requirement 3.9: active for interactive elements
+    alignItems: 'center',
+    marginTop: 8,
   },
-  bentoRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  bentoSmall: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-  },
-  bentoMedium: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-  },
-  bentoLabel: {
-    fontSize: 10,
-    color: '#666666',
-    letterSpacing: 1.5,
-    fontWeight: '700',
+  warRoomButtonIcon: {
+    fontSize: 32,
     marginBottom: 8,
   },
-  bentoValue: {
-    fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  bentoValueNeon: {
-    fontSize: 28,
-    color: '#FF0000',
+  warRoomButtonText: {
+    fontSize: 16,
+    color: colors.active, // Requirement 3.9: active for interactive elements
     fontWeight: '900',
+    letterSpacing: 2,
     marginBottom: 4,
   },
-  bentoSubtext: {
+  warRoomButtonSubtext: {
     fontSize: 11,
-    color: '#666666',
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#FF0000',
-  },
-  glassHeader: {
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  bentoTitle: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  bentoDescription: {
-    fontSize: 13,
-    color: '#888888',
-    lineHeight: 20,
-  },
-  statusGrid: {
-    gap: 12,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statusLabel: {
-    fontSize: 11,
-    color: '#666666',
-    letterSpacing: 1,
-    fontWeight: '700',
-  },
-  statusValue: {
-    fontSize: 13,
-    color: '#ffffff',
-    fontWeight: '600',
-    fontFamily: 'monospace',
-  },
-  statusBadgeActive: {
-    backgroundColor: '#00ff0010',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: '#00ff00',
-  },
-  statusBadgeText: {
-    color: '#00ff00',
-    fontSize: 10,
-    fontWeight: '900',
+    color: colors.textSecondary,
     letterSpacing: 1,
   },
 });

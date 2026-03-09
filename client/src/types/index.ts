@@ -364,3 +364,32 @@ export interface Exam {
 export interface ExamCountdownProps {
   onExamCritical?: (examName: string, daysRemaining: number) => void;
 }
+
+// Weekly Reflection Types
+
+export interface WeeklyReflection {
+  id: string;
+  week_start_date: string;
+  week_end_date: string;
+  accomplishments: string;
+  avoided_tasks: string;
+  learning: string;
+  challenges: string;
+  next_week_priorities: string;
+  architect_report: string | null;
+  exp_delta: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WeeklyReflectionProps {
+  onSubmit?: (reflection: WeeklyReflection) => void;
+  onClose?: () => void;
+}
+
+export interface WeeklyGrowthReport {
+  what_shipped: string;
+  what_avoided: string;
+  exp_delta: number;
+  hard_truth: string;
+}

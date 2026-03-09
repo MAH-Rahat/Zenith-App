@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput,
 import { skillTree, SkillNode, Phase } from '../services/SkillTree';
 import { animationController } from '../services/AnimationController';
 import { useTransitMode } from '../contexts/TransitModeContext';
+import { colors } from '../theme/colors';
 
 export const SkillsScreen: React.FC = () => {
   const [phases, setPhases] = useState<Phase[]>([]);
@@ -75,18 +76,18 @@ export const SkillsScreen: React.FC = () => {
   };
 
   const renderSkillNode = (node: SkillNode): React.ReactElement => {
-    let backgroundColor = '#0a0a0a';
-    let borderColor = '#1a1a1a';
-    let textColor = '#333333';
+    let backgroundColor = colors.surface;
+    let borderColor = colors.border;
+    let textColor = colors.disabled;
     
     if (node.completionPercentage === 100) {
-      backgroundColor = '#00ff0010';
-      borderColor = '#00ff00';
-      textColor = '#00ff00';
+      backgroundColor = colors.surface;
+      borderColor = colors.growth;
+      textColor = colors.growth;
     } else if (!node.isLocked) {
-      backgroundColor = '#0a0a0a';
-      borderColor = '#00E5FF';
-      textColor = '#ffffff';
+      backgroundColor = colors.surface;
+      borderColor = colors.active;
+      textColor = colors.text;
     }
 
     return (
@@ -108,7 +109,7 @@ export const SkillsScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF0000" />
+        <ActivityIndicator size="large" color={colors.active} />
       </View>
     );
   }
@@ -208,36 +209,41 @@ export const SkillsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
-    padding: 20,
-    paddingTop: 50,
+    padding: 16,
+    paddingTop: 60,
   },
   header: {
     marginBottom: 32,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: 2,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: 1,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 10,
-    color: '#666666',
-    letterSpacing: 1.5,
-    fontWeight: '700',
+    fontSize: 12,
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    fontWeight: '600',
   },
   phaseContainer: {
-    marginBottom: 32,
+    marginBottom: 24,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
   },
   phaseHeader: {
     marginBottom: 16,
@@ -250,14 +256,14 @@ const styles = StyleSheet.create({
   },
   phaseNumber: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FF0000',
+    fontWeight: '700',
+    color: colors.active,
     letterSpacing: 1,
   },
   phaseName: {
-    fontSize: 12,
-    color: '#888888',
-    fontWeight: '700',
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   phaseMetaRow: {
@@ -266,36 +272,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   phaseProgress: {
-    fontSize: 11,
-    color: '#666666',
-    fontWeight: '700',
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   unlockedBadge: {
-    backgroundColor: '#00ff0010',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#00ff00',
+    borderColor: colors.growth,
   },
   unlockedBadgeText: {
-    fontSize: 9,
-    color: '#00ff00',
-    fontWeight: '900',
+    fontSize: 10,
+    color: colors.growth,
+    fontWeight: '700',
     letterSpacing: 1,
   },
   lockedBadge: {
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: colors.border,
   },
   lockedBadgeText: {
-    fontSize: 9,
-    color: '#333333',
-    fontWeight: '900',
+    fontSize: 10,
+    color: colors.disabled,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   skillsGrid: {
@@ -306,14 +312,16 @@ const styles = StyleSheet.create({
   skillNode: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 24,
-    borderWidth: 2,
+    borderRadius: 20,
+    borderWidth: 1,
     minWidth: 100,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   skillName: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     textAlign: 'center',
   },
   checkmark: {
@@ -326,52 +334,52 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.98)',
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '85%',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    width: '90%',
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
     marginBottom: 4,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   modalSubtitle: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.textSecondary,
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '700',
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.5,
   },
   inputHint: {
-    fontSize: 11,
-    color: '#666666',
+    fontSize: 12,
+    color: colors.textSecondary,
     marginBottom: 12,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   input: {
-    backgroundColor: '#000000',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
     padding: 16,
-    color: '#ffffff',
-    fontSize: 15,
+    color: colors.text,
+    fontSize: 14,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   textArea: {
     minHeight: 100,
@@ -384,19 +392,25 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     padding: 16,
-    borderRadius: 9999,
+    borderRadius: 12,
     alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   confirmButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: colors.active,
+    borderWidth: 1,
+    borderColor: colors.active,
   },
   buttonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

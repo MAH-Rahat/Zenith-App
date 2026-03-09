@@ -49,6 +49,11 @@
         }
       ]
     ],
+    "extra": {
+      "eas": {
+        "projectId": "your-expo-project-id-here"
+      }
+    },
     "sdkVersion": "54.0.0"
   }
 }

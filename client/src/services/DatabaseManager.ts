@@ -2,7 +2,7 @@
 import { openDatabaseAsync, deleteDatabaseAsync } from 'expo-sqlite';
 
 const DB_NAME = 'zenith.db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const MAX_RETRIES = 1;
 const RETRY_DELAY_MS = 100;
 
@@ -352,6 +352,66 @@ class DatabaseManagerImpl {
   }
 
   /**
+   * Get a setting value by key
+   * Requirement: 60.3
+   */
+  async getSetting(key: string): Promise<string | null> {
+    if (!this.db) {
+      await this.init();
+    }
+
+    try {
+      const result = await this.query<{ value: string }>(
+        'SELECT value FROM settings WHERE key = ?',
+        [key]
+      );
+
+      return result.length > 0 ? result[0].value : null;
+    } catch (error) {
+      console.error(`Failed to get setting ${key}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Set or update a setting value
+   * Requirement: 60.3
+   */
+  async upsertSetting(key: string, value: string): Promise<void> {
+    if (!this.db) {
+      await this.init();
+    }
+
+    const now = new Date().toISOString();
+
+    try {
+      // Try to update first
+      const updateSql = 'UPDATE settings SET value = ?, updatedAt = ? WHERE key = ?';
+      const result = await this.db!.runAsync(updateSql, [value, now, key]);
+
+      // If no rows were updated, insert new row
+      if (result.changes === 0) {
+        const insertSql = 'INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)';
+        await this.db!.runAsync(insertSql, [key, value, now]);
+      }
+    } catch (error) {
+      console.error(`Failed to upsert setting ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a setting by key
+   */
+  async deleteSetting(key: string): Promise<void> {
+    if (!this.db) {
+      await this.init();
+    }
+
+    await this.delete('settings', 'key = ?', [key]);
+  }
+
+  /**
    * Export all data as JSON
    */
   async export(): Promise<string> {
@@ -372,7 +432,8 @@ class DatabaseManagerImpl {
         'exams',
         'hp_log',
         'notifications',
-        'settings'
+        'settings',
+        'weekly_reflections'
       ];
 
       for (const table of tables) {
@@ -507,6 +568,9 @@ class DatabaseManagerImpl {
         break;
       case 2:
         await this.migrationV2();
+        break;
+      case 3:
+        await this.migrationV3();
         break;
       default:
         console.log(`No migration defined for version ${version}`);
@@ -687,6 +751,40 @@ class DatabaseManagerImpl {
   }
 
   /**
+   * Migration V3: Add weekly_reflections table
+   * Requirements: 39.7, 90.1
+   */
+  private async migrationV3(): Promise<void> {
+    await this.transaction(async () => {
+      // Create weekly_reflections table
+      await this.db!.execAsync(`
+        CREATE TABLE IF NOT EXISTS weekly_reflections (
+          id TEXT PRIMARY KEY,
+          week_start_date TEXT NOT NULL UNIQUE,
+          week_end_date TEXT NOT NULL,
+          accomplishments TEXT NOT NULL,
+          avoided_tasks TEXT NOT NULL,
+          learning TEXT NOT NULL,
+          challenges TEXT NOT NULL,
+          next_week_priorities TEXT NOT NULL,
+          architect_report TEXT,
+          exp_delta INTEGER NOT NULL DEFAULT 0,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      `);
+
+      // Create index for date-based queries
+      await this.db!.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_weekly_reflections_date 
+        ON weekly_reflections(week_start_date DESC)
+      `);
+
+      console.log('Migration V3: Added weekly_reflections table');
+    });
+  }
+
+  /**
    * Close database connection
    */
   async close(): Promise<void> {
@@ -752,7 +850,8 @@ class DatabaseManagerImpl {
       'exams',
       'hp_log',
       'notifications',
-      'settings'
+      'settings',
+      'weekly_reflections'
     ];
 
     const stats: Record<string, number> = {};
@@ -795,7 +894,8 @@ class DatabaseManagerImpl {
       'exams',
       'hp_log',
       'notifications',
-      'settings'
+      'settings',
+      'weekly_reflections'
     ];
 
     await this.transaction(async () => {

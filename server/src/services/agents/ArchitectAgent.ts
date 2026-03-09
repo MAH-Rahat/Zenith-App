@@ -73,6 +73,22 @@ export interface ArchitectOutput {
   hard_truth: string;
 }
 
+export interface WeeklyReflectionInput {
+  accomplishments: string;
+  avoided_tasks: string;
+  learning: string;
+  challenges: string;
+  next_week_priorities: string;
+  exp_delta: number;
+}
+
+export interface WeeklyGrowthReport {
+  what_shipped: string;
+  what_avoided: string;
+  exp_delta: number;
+  hard_truth: string;
+}
+
 // ===== Full-Stack AI Engineer Job Requirements =====
 
 const FULL_STACK_AI_ENGINEER_REQUIREMENTS = [
@@ -161,6 +177,48 @@ export class ArchitectAgent {
 
     console.log('✅ ARCHITECT processing complete');
     return output;
+  }
+
+  /**
+   * Generate Weekly Growth Report from reflection
+   * 
+   * Requirements: 39.5, 39.6, 39.7
+   * 
+   * Analyzes weekly reflection responses and generates report including:
+   * - What shipped
+   * - What avoided
+   * - EXP delta from previous week
+   * - One hard truth
+   */
+  static async generateWeeklyGrowthReport(
+    input: WeeklyReflectionInput
+  ): Promise<WeeklyGrowthReport> {
+    console.log('🏗️ ARCHITECT generating Weekly Growth Report...');
+
+    try {
+      // Check cache first (1 hour TTL)
+      const cacheKey = `architect:weekly_report:${input.exp_delta}:${input.accomplishments.substring(0, 50)}`;
+      const cached = await CacheService.getCachedGeminiResponse<WeeklyGrowthReport>(cacheKey);
+
+      if (cached) {
+        console.log('✅ Weekly Growth Report served from cache');
+        return cached;
+      }
+
+      // Call Gemini API to generate report
+      const report = await this.callGeminiForWeeklyReport(input);
+
+      // Cache the result
+      await CacheService.cacheGeminiResponse(cacheKey, report);
+
+      console.log('✅ Weekly Growth Report generated');
+      return report;
+    } catch (error) {
+      console.error('Failed to generate Weekly Growth Report:', error);
+
+      // Return default report if Gemini fails
+      return this.getDefaultWeeklyReport(input);
+    }
   }
 
   /**
@@ -936,5 +994,135 @@ Format:
     } else {
       return `You are on track but not exceptional. Leverage your 5 years of design experience to create visually stunning projects that stand out.`;
     }
+  }
+
+  /**
+   * Call Gemini API to generate Weekly Growth Report
+   * 
+   * Requirements: 39.5, 39.6
+   */
+  private static async callGeminiForWeeklyReport(
+    input: WeeklyReflectionInput
+  ): Promise<WeeklyGrowthReport> {
+    const apiKey = config.gemini.apiKey;
+
+    if (!apiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    // Construct prompt with Senior Staff Engineer persona
+    const prompt = this.buildWeeklyReportPrompt(input);
+
+    // Call Gemini API with exponential backoff
+    const response = await this.callGeminiWithRetry(apiKey, prompt);
+
+    // Parse response
+    return this.parseWeeklyReportResponse(response, input.exp_delta);
+  }
+
+  /**
+   * Build prompt for Weekly Growth Report generation
+   * 
+   * Requirements: 39.5, 39.6
+   */
+  private static buildWeeklyReportPrompt(input: WeeklyReflectionInput): string {
+    return `You are ARCHITECT, a Senior Staff Engineer providing unfiltered weekly growth analysis.
+
+WEEKLY REFLECTION RESPONSES:
+
+Accomplishments: ${input.accomplishments}
+
+Avoided Tasks: ${input.avoided_tasks}
+
+Learning: ${input.learning}
+
+Challenges: ${input.challenges}
+
+Next Week Priorities: ${input.next_week_priorities}
+
+EXP Delta from Previous Week: ${input.exp_delta > 0 ? '+' : ''}${input.exp_delta}
+
+REQUIREMENTS (Requirements 39.5, 39.6):
+- Analyze what shipped this week (be specific, reference actual accomplishments)
+- Analyze what was avoided (be direct about procrastination patterns)
+- Include the EXP delta value
+- Provide one hard truth (maximum 2 sentences, brutally honest, actionable)
+- Use unfiltered, direct tone
+- Reference specific items from the reflection
+
+Format:
+{
+  "what_shipped": "Specific analysis of accomplishments",
+  "what_avoided": "Direct analysis of avoided tasks and patterns",
+  "hard_truth": "Your unfiltered feedback. Maximum 2 sentences."
+}`;
+  }
+
+  /**
+   * Parse Gemini API response for Weekly Growth Report
+   */
+  private static parseWeeklyReportResponse(
+    responseText: string,
+    expDelta: number
+  ): WeeklyGrowthReport {
+    try {
+      // Remove markdown code blocks if present
+      let cleanedText = responseText.trim();
+
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/```\n?/g, '');
+      }
+
+      cleanedText = cleanedText.trim();
+
+      // Parse JSON
+      const parsed = JSON.parse(cleanedText);
+
+      if (!parsed.what_shipped || !parsed.what_avoided || !parsed.hard_truth) {
+        throw new Error('Invalid response format');
+      }
+
+      return {
+        what_shipped: parsed.what_shipped,
+        what_avoided: parsed.what_avoided,
+        exp_delta: expDelta,
+        hard_truth: parsed.hard_truth,
+      };
+    } catch (error) {
+      console.error('Failed to parse Weekly Growth Report response:', error);
+      console.error('Response text:', responseText);
+
+      // Return default report if parsing fails
+      return {
+        what_shipped: 'Unable to analyze accomplishments.',
+        what_avoided: 'Unable to analyze avoided tasks.',
+        exp_delta: expDelta,
+        hard_truth: 'Reflection analysis failed. Try again.',
+      };
+    }
+  }
+
+  /**
+   * Get default Weekly Growth Report when Gemini fails
+   */
+  private static getDefaultWeeklyReport(input: WeeklyReflectionInput): WeeklyGrowthReport {
+    const expTrend = input.exp_delta > 0 ? 'up' : input.exp_delta < 0 ? 'down' : 'flat';
+    
+    return {
+      what_shipped: input.accomplishments.length > 0 
+        ? `You reported accomplishments this week. EXP is ${expTrend}.`
+        : 'No significant accomplishments reported.',
+      what_avoided: input.avoided_tasks.length > 0
+        ? 'You acknowledged tasks you avoided. Address these next week.'
+        : 'No avoided tasks reported.',
+      exp_delta: input.exp_delta,
+      hard_truth: input.exp_delta < 0
+        ? `EXP dropped by ${Math.abs(input.exp_delta)} this week. You are regressing, not progressing.`
+        : input.exp_delta === 0
+        ? 'Zero EXP growth this week. Stagnation is the enemy of graduation readiness.'
+        : `EXP up ${input.exp_delta} this week. Maintain this velocity or you will fall behind.`,
+    };
   }
 }

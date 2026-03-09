@@ -4,11 +4,11 @@
  * Manages Transit Mode time-gated UI feature.
  * Automatically activates from 5:00 PM to 10:00 PM daily.
  * 
- * Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 23.1, 23.2, 23.3, 23.4, 24.1, 24.2, 24.3, 24.4, 69.4, 70.3
+ * Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 23.1, 23.2, 23.3, 23.4, 24.1, 24.2, 24.3, 24.4, 63.3, 69.4, 70.3
  */
 
 import { databaseManager } from './DatabaseManager';
-import * as Notifications from 'expo-notifications';
+import { notificationService } from './NotificationService';
 
 // Transit Mode time constants (24-hour format)
 const TRANSIT_MODE_START_HOUR = 17; // 5:00 PM
@@ -28,6 +28,7 @@ class TransitModeServiceImpl {
   };
   
   private checkIntervalId: NodeJS.Timeout | null = null;
+  private transitModeNotificationId: string | null = null;
   private readonly CHECK_INTERVAL_MS = 60 * 1000; // 60 seconds
   private listeners: Set<(isActive: boolean) => void> = new Set();
 
@@ -42,6 +43,10 @@ class TransitModeServiceImpl {
       
       // Check current time and set initial state
       await this.checkTimeGate();
+      
+      // Schedule Transit Mode end notification
+      // Requirement 63.3: Schedule local notifications for Transit_Mode end
+      await this.scheduleTransitModeNotification();
       
       // Start periodic time checking
       this.startPeriodicCheck();
@@ -157,18 +162,41 @@ class TransitModeServiceImpl {
    * Send push notification when Transit Mode ends
    * Requirement 23.1: When Transit_Mode deactivates at 10:00 PM, trigger push notification
    * Requirement 23.2: Display message "Transit window closed. Return to deep work."
+   * Requirement 63.3: Schedule local notifications for Transit_Mode end
+   */
+  private async scheduleTransitModeNotification(): Promise<void> {
+    try {
+      // Cancel existing notification if any
+      if (this.transitModeNotificationId) {
+        await notificationService.cancelNotification(this.transitModeNotificationId);
+      }
+
+      // Schedule daily notification at 10:00 PM
+      this.transitModeNotificationId = await notificationService.scheduleTransitModeEndNotification();
+      
+      console.log('[TransitMode] End notification scheduled');
+    } catch (error) {
+      console.error('[TransitMode] Failed to schedule notification:', error);
+    }
+  }
+
+  /**
+   * @deprecated Use scheduleTransitModeNotification instead
+   * Send push notification when Transit Mode ends
+   * Requirement 23.1: When Transit_Mode deactivates at 10:00 PM, trigger push notification
+   * Requirement 23.2: Display message "Transit window closed. Return to deep work."
    */
   private async sendEndNotification(): Promise<void> {
     try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Transit Mode Ended',
-          body: 'Transit window closed. Return to deep work.',
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
+      await notificationService.scheduleLocalNotification(
+        'Transit Mode Ended',
+        'Transit window closed. Return to deep work.',
+        {
+          type: 'transit_mode',
+          screen: 'Home',
         },
-        trigger: null, // Send immediately
-      });
+        null // Send immediately
+      );
       
       console.log('[TransitMode] End notification sent');
     } catch (error) {

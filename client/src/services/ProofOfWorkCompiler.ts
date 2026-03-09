@@ -1,7 +1,6 @@
 import { databaseManager } from './DatabaseManager';
 import { skillTree } from './SkillTree';
-import { expSystem } from './EXPSystem';
-import { Clipboard } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 
 export interface ProgressReport {
   title: string;
@@ -18,26 +17,28 @@ export interface ProgressReport {
 }
 
 const PHASE_NAMES: Record<number, string> = {
-  1: 'Full-Stack Mastery',
-  2: 'DevSecOps Infrastructure',
-  3: 'Security & Networking',
-  4: 'AI & ML Engine'
+  1: 'Phase 1: MERN Stack',
+  2: 'Phase 2: DevOps',
+  3: 'Phase 3: DevSecOps',
+  4: 'Phase 4: AI/ML'
 };
+
+const NODE_EXP_VALUE = 20; // EXP awarded per completed node
 
 class ProofOfWorkCompilerImpl {
   /**
    * Generate progress report for a date range
+   * Requirement 36.4: Query completed skill_nodes within date range
    */
   async generateReport(startDate: string, endDate: string): Promise<ProgressReport> {
     try {
-      // Get completed nodes in date range
+      // Requirement 36.4: Query completed nodes in date range
       const nodes = await skillTree.getCompletedNodes(startDate, endDate);
 
-      // Get total EXP earned in period
-      const expHistory = await expSystem.getEXPHistory(startDate, endDate);
-      const totalEXP = expHistory.reduce((sum, entry) => sum + entry.expEarned, 0);
+      // Requirement 36.7: Calculate total EXP earned from completed nodes
+      const totalEXP = nodes.length * NODE_EXP_VALUE;
 
-      // Group nodes by phase
+      // Requirement 36.5: Group nodes by phase
       const nodesByPhase: Record<number, typeof nodes> = {
         1: [],
         2: [],
@@ -51,7 +52,7 @@ class ProofOfWorkCompilerImpl {
         }
       });
 
-      // Generate markdown
+      // Requirement 36.6: Format output as Markdown with headers, bullet lists, and GitHub links
       const markdown = this.generateMarkdown(startDate, endDate, totalEXP, nodesByPhase);
 
       // Format period
@@ -81,6 +82,7 @@ class ProofOfWorkCompilerImpl {
 
   /**
    * Generate report for the past 30 days
+   * Requirement 36.2: Default to past 30 days filter
    */
   async generateMonthlyReport(): Promise<ProgressReport> {
     const endDate = new Date().toISOString();
@@ -92,10 +94,11 @@ class ProofOfWorkCompilerImpl {
 
   /**
    * Copy report to clipboard
+   * Requirement 36.9: Copy Markdown to device clipboard on button tap
    */
   async copyToClipboard(markdown: string): Promise<void> {
     try {
-      Clipboard.setString(markdown);
+      await Clipboard.setStringAsync(markdown);
       console.log('Report copied to clipboard');
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
@@ -105,6 +108,7 @@ class ProofOfWorkCompilerImpl {
 
   /**
    * Generate markdown string
+   * Requirement 36.6: Format output as Markdown with headers, bullet lists, and GitHub links
    */
   private generateMarkdown(
     startDate: string,
@@ -115,26 +119,35 @@ class ProofOfWorkCompilerImpl {
     const monthYear = this.getMonthYear(endDate);
     const period = `${this.formatDate(startDate)} - ${this.formatDate(endDate)}`;
 
-    let markdown = `# Progress Report - ${monthYear}\n\n`;
+    let markdown = `# Proof-of-Work Report - ${monthYear}\n\n`;
     markdown += `**Period:** ${period}\n`;
     markdown += `**Total EXP Earned:** ${totalEXP}\n\n`;
     markdown += `---\n\n`;
 
-    // Add completed nodes by phase
+    // Requirement 36.5: Group nodes by phase
+    // Requirement 36.6: Format with headers, bullet lists, and GitHub links
     for (let phase = 1; phase <= 4; phase++) {
       const nodes = nodesByPhase[phase];
       
       if (nodes.length > 0) {
-        markdown += `## Phase ${phase}: ${PHASE_NAMES[phase]}\n\n`;
+        markdown += `## ${PHASE_NAMES[phase]}\n\n`;
         
         nodes.forEach(node => {
           markdown += `- **${node.name}**\n`;
+          
           if (node.proofOfWork) {
-            markdown += `  - Proof: ${node.proofOfWork}\n`;
+            // Check if proof of work is a GitHub URL
+            if (this.isGitHubURL(node.proofOfWork)) {
+              markdown += `  - Proof: [GitHub Link](${node.proofOfWork})\n`;
+            } else {
+              markdown += `  - Proof: ${node.proofOfWork}\n`;
+            }
           }
+          
           if (node.completedAt) {
             markdown += `  - Completed: ${this.formatDate(node.completedAt)}\n`;
           }
+          
           markdown += `\n`;
         });
       }
@@ -143,12 +156,28 @@ class ProofOfWorkCompilerImpl {
     // Add summary
     const totalNodes = Object.values(nodesByPhase).reduce((sum, nodes) => sum + nodes.length, 0);
     markdown += `---\n\n`;
-    markdown += `**Summary:**\n`;
-    markdown += `- Completed ${totalNodes} skill nodes\n`;
-    markdown += `- Earned ${totalEXP} EXP\n`;
-    markdown += `- Period: ${period}\n`;
+    markdown += `## Summary\n\n`;
+    markdown += `- **Completed Nodes:** ${totalNodes}\n`;
+    markdown += `- **Total EXP Earned:** ${totalEXP}\n`;
+    markdown += `- **Period:** ${period}\n\n`;
+    
+    // Add breakdown by phase
+    markdown += `### Breakdown by Phase\n\n`;
+    for (let phase = 1; phase <= 4; phase++) {
+      const count = nodesByPhase[phase].length;
+      if (count > 0) {
+        markdown += `- ${PHASE_NAMES[phase]}: ${count} node${count !== 1 ? 's' : ''}\n`;
+      }
+    }
 
     return markdown;
+  }
+
+  /**
+   * Check if a string is a GitHub URL
+   */
+  private isGitHubURL(url: string): boolean {
+    return url.toLowerCase().includes('github.com');
   }
 
   /**

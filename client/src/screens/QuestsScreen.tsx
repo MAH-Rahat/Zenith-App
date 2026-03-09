@@ -4,6 +4,7 @@ import { questSystem, Quest } from '../services/QuestSystem';
 import { aiEngine, MicroStep } from '../services/AIEngine';
 import { animationController } from '../services/AnimationController';
 import { useTransitMode } from '../contexts/TransitModeContext';
+import { colors } from '../theme/colors';
 
 export const QuestsScreen: React.FC = () => {
   const [quests, setQuests] = useState<Quest[]>([]);
@@ -11,7 +12,7 @@ export const QuestsScreen: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [fogModeVisible, setFogModeVisible] = useState(false);
   const [newQuestDescription, setNewQuestDescription] = useState('');
-  const [newQuestEnergyType, setNewQuestEnergyType] = useState<'high' | 'low'>('high');
+  const [newQuestEnergyType, setNewQuestEnergyType] = useState<'high' | 'medium' | 'low'>('medium');
   const [fogTaskDescription, setFogTaskDescription] = useState('');
   const [fogLoading, setFogLoading] = useState(false);
   const [microSteps, setMicroSteps] = useState<MicroStep[]>([]);
@@ -134,8 +135,21 @@ export const QuestsScreen: React.FC = () => {
   };
 
   const renderQuest = (quest: Quest) => {
-    const energyColor = quest.energyType === 'high' ? '#FF0000' : '#00E5FF';
-    const energyLabel = quest.energyType === 'high' ? 'HIGH ENERGY' : 'LOW ENERGY';
+    // Requirement 69.5: Energy categorization colors
+    const energyColors = {
+      high: colors.growth,    // #00FF66 - High energy
+      medium: colors.active,  // #00E5FF - Medium energy  
+      low: colors.caution,    // #FFB800 - Low energy
+    };
+    
+    const energyLabels = {
+      high: 'HIGH ENERGY',
+      medium: 'MEDIUM ENERGY',
+      low: 'LOW ENERGY',
+    };
+    
+    const energyColor = energyColors[quest.energyLevel] || colors.active;
+    const energyLabel = energyLabels[quest.energyLevel] || 'MEDIUM ENERGY';
 
     return (
       <TouchableOpacity
@@ -182,40 +196,32 @@ export const QuestsScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>ACTIVE QUESTS</Text>
-            <View style={styles.headerButtons}>
-              <TouchableOpacity
-                style={styles.fogButton}
-                onPress={() => setFogModeVisible(true)}
-              >
-                <Text style={styles.fogButtonText}>⚡ FOG MODE</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => setModalVisible(true)}
-              >
-                <Text style={styles.addButtonText}>+ ADD</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setModalVisible(true)}
+            >
+              <Text style={styles.addButtonText}>+ ADD</Text>
+            </TouchableOpacity>
           </View>
           
           {/* High Energy Quests Section */}
-          {/* Requirement 22.3: Collapse high-energy quests while Transit Mode is active */}
+          {/* Requirement 69.4: Collapse high-energy quests while Transit Mode is active */}
           <View style={styles.energySection}>
             <TouchableOpacity
               style={styles.energySectionHeader}
               onPress={() => setHighEnergyCollapsed(!highEnergyCollapsed)}
             >
-              <Text style={styles.energySectionTitle}>
+              <Text style={[styles.energySectionTitle, { color: colors.growth }]}>
                 {highEnergyCollapsed ? '▶' : '▼'} HIGH ENERGY
               </Text>
               <Text style={styles.energyCount}>
-                {quests.filter(q => q.energyType === 'high' && !q.isComplete).length}
+                {quests.filter(q => q.energyLevel === 'high' && !q.isComplete).length}
               </Text>
             </TouchableOpacity>
             {!highEnergyCollapsed && (
               <View style={styles.questList}>
-                {quests.filter(q => q.energyType === 'high').length > 0 ? (
-                  quests.filter(q => q.energyType === 'high').map(renderQuest)
+                {quests.filter(q => q.energyLevel === 'high').length > 0 ? (
+                  quests.filter(q => q.energyLevel === 'high').map(renderQuest)
                 ) : (
                   <Text style={styles.emptySubtext}>No high energy quests</Text>
                 )}
@@ -223,17 +229,34 @@ export const QuestsScreen: React.FC = () => {
             )}
           </View>
           
-          {/* Low Energy Quests Section */}
+          {/* Medium Energy Quests Section */}
           <View style={styles.energySection}>
             <View style={styles.energySectionHeader}>
-              <Text style={styles.energySectionTitle}>LOW ENERGY</Text>
+              <Text style={[styles.energySectionTitle, { color: colors.active }]}>MEDIUM ENERGY</Text>
               <Text style={styles.energyCount}>
-                {quests.filter(q => q.energyType === 'low' && !q.isComplete).length}
+                {quests.filter(q => q.energyLevel === 'medium' && !q.isComplete).length}
               </Text>
             </View>
             <View style={styles.questList}>
-              {quests.filter(q => q.energyType === 'low').length > 0 ? (
-                quests.filter(q => q.energyType === 'low').map(renderQuest)
+              {quests.filter(q => q.energyLevel === 'medium').length > 0 ? (
+                quests.filter(q => q.energyLevel === 'medium').map(renderQuest)
+              ) : (
+                <Text style={styles.emptySubtext}>No medium energy quests</Text>
+              )}
+            </View>
+          </View>
+          
+          {/* Low Energy Quests Section */}
+          <View style={styles.energySection}>
+            <View style={styles.energySectionHeader}>
+              <Text style={[styles.energySectionTitle, { color: colors.caution }]}>LOW ENERGY</Text>
+              <Text style={styles.energyCount}>
+                {quests.filter(q => q.energyLevel === 'low' && !q.isComplete).length}
+              </Text>
+            </View>
+            <View style={styles.questList}>
+              {quests.filter(q => q.energyLevel === 'low').length > 0 ? (
+                quests.filter(q => q.energyLevel === 'low').map(renderQuest)
               ) : (
                 <Text style={styles.emptySubtext}>No low energy quests</Text>
               )}
@@ -248,6 +271,14 @@ export const QuestsScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Fog Mode FAB - Requirement 68.4 */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setFogModeVisible(true)}
+      >
+        <Text style={styles.fabText}>⚡</Text>
+      </TouchableOpacity>
 
       {/* Add Quest Modal */}
       <Modal
@@ -275,18 +306,27 @@ export const QuestsScreen: React.FC = () => {
                 onPress={() => setNewQuestEnergyType('high')}
               >
                 <Text style={[styles.energyOptionText, newQuestEnergyType === 'high' && styles.energyOptionTextActive]}>
-                  HIGH ENERGY
+                  HIGH
                 </Text>
-                <Text style={styles.energyHint}>Pre-5 PM</Text>
+                <Text style={styles.energyHint}>Deep work</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.energyOption, newQuestEnergyType === 'medium' && styles.energyOptionActive]}
+                onPress={() => setNewQuestEnergyType('medium')}
+              >
+                <Text style={[styles.energyOptionText, newQuestEnergyType === 'medium' && styles.energyOptionTextActive]}>
+                  MEDIUM
+                </Text>
+                <Text style={styles.energyHint}>Study</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.energyOption, newQuestEnergyType === 'low' && styles.energyOptionActive]}
                 onPress={() => setNewQuestEnergyType('low')}
               >
                 <Text style={[styles.energyOptionText, newQuestEnergyType === 'low' && styles.energyOptionTextActive]}>
-                  LOW ENERGY
+                  LOW
                 </Text>
-                <Text style={styles.energyHint}>Post-10 PM</Text>
+                <Text style={styles.energyHint}>Light tasks</Text>
               </TouchableOpacity>
             </View>
             
@@ -396,17 +436,18 @@ export const QuestsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
     padding: 20,
     paddingTop: 50,
+    paddingBottom: 100, // Space for FAB
   },
   header: {
     marginBottom: 32,
@@ -414,13 +455,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text,
     letterSpacing: 2,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 10,
-    color: '#666666',
+    color: colors.textSecondary,
     letterSpacing: 1.5,
     fontWeight: '700',
   },
@@ -436,33 +477,27 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text,
     letterSpacing: 1.5,
   },
   headerButtons: {
     flexDirection: 'row',
     gap: 8,
   },
-  fogButton: {
-    backgroundColor: '#00E5FF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 9999,
-  },
-  fogButtonText: {
-    color: '#000000',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
   addButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: colors.active,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 9999,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.active,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addButtonText: {
-    color: '#000000',
+    color: colors.void,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
@@ -473,17 +508,18 @@ const styles = StyleSheet.create({
   questItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 20,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
+    minHeight: 44,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderWidth: 2,
-    borderColor: '#333333',
+    borderColor: colors.border,
     borderRadius: 12,
     marginRight: 16,
     justifyContent: 'center',
@@ -491,11 +527,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkboxComplete: {
-    backgroundColor: '#00ff00',
-    borderColor: '#00ff00',
+    backgroundColor: colors.growth,
+    borderColor: colors.growth,
   },
   checkmark: {
-    color: '#000000',
+    color: colors.void,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -503,7 +539,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   questText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500',
@@ -511,7 +547,7 @@ const styles = StyleSheet.create({
   },
   questTextComplete: {
     textDecorationLine: 'line-through',
-    color: '#333333',
+    color: colors.disabled,
   },
   questMeta: {
     flexDirection: 'row',
@@ -531,7 +567,7 @@ const styles = StyleSheet.create({
   },
   expText: {
     fontSize: 11,
-    color: '#00ff00',
+    color: colors.growth,
     fontWeight: '700',
   },
   emptyState: {
@@ -539,14 +575,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#333333',
+    color: colors.disabled,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1,
     marginBottom: 4,
   },
   emptySubtext: {
-    color: '#1a1a1a',
+    color: colors.border,
     fontSize: 11,
   },
   modalOverlay: {
@@ -557,33 +593,34 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '85%',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text,
     marginBottom: 4,
     letterSpacing: 1,
   },
   modalSubtitle: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.textSecondary,
     marginBottom: 20,
   },
   input: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     borderRadius: 16,
     padding: 16,
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 15,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
+    minHeight: 44,
   },
   textArea: {
     minHeight: 100,
@@ -591,62 +628,63 @@ const styles = StyleSheet.create({
   },
   energySelector: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     marginBottom: 20,
   },
   energyOption: {
     flex: 1,
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
     alignItems: 'center',
+    minHeight: 44,
   },
   energyOptionActive: {
-    borderColor: '#FF0000',
-    backgroundColor: '#FF000010',
+    borderColor: colors.active,
+    backgroundColor: colors.surfaceRaised,
   },
   energyOptionText: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#666666',
+    color: colors.textSecondary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   energyOptionTextActive: {
-    color: '#FF0000',
+    color: colors.active,
   },
   energyHint: {
     fontSize: 9,
-    color: '#333333',
+    color: colors.disabled,
   },
   microStepsList: {
     gap: 12,
     marginBottom: 20,
   },
   microStepItem: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   microStepNumber: {
     fontSize: 10,
-    color: '#00E5FF',
+    color: colors.active,
     fontWeight: '900',
     letterSpacing: 1,
     marginBottom: 8,
   },
   microStepText: {
     fontSize: 14,
-    color: '#ffffff',
+    color: colors.text,
     lineHeight: 20,
     marginBottom: 8,
   },
   microStepTime: {
     fontSize: 11,
-    color: '#666666',
+    color: colors.textSecondary,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -657,15 +695,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 9999,
     alignItems: 'center',
+    minHeight: 44,
   },
   cancelButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.border,
   },
   confirmButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: colors.active,
   },
   buttonText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1,
@@ -679,23 +718,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
     marginBottom: 12,
+    minHeight: 44,
   },
   energySectionTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text,
     letterSpacing: 1.5,
   },
   energyCount: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#FF0000',
+    color: colors.active,
     fontFamily: 'monospace',
+  },
+  // FAB with glassmorphism effect - Requirement 68.4
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.active,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.active,
+    // Glassmorphism effect
+    opacity: 0.95,
+  },
+  fabText: {
+    fontSize: 32,
+    color: colors.void,
   },
 });
 

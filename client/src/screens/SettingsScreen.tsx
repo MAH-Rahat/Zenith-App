@@ -6,18 +6,39 @@ import { proofOfWorkCompiler } from '../services/ProofOfWorkCompiler';
 import { gameRulesManager, EXPRuleKey } from '../services/GameRulesManager';
 import { transitModeService } from '../services/TransitModeService';
 import { ExamDateEditor } from '../components/ExamDateEditor';
+import { PoWCompiler } from '../components/PoWCompiler';
 import { Clipboard } from 'react-native';
+import { colors } from '../theme/colors';
+
+/**
+ * SettingsScreen Component
+ * 
+ * Requirements: 68.7, 2.7, 24.1, 36.1, 60.4, 61.6
+ * 
+ * Displays:
+ * - API key management (Gemini, GitHub) - Req 60.4, 61.6
+ * - Transit Mode toggle - Req 24.1
+ * - Backup export/import buttons - Req 2.7
+ * - PoW Compiler access - Req 36.1
+ * - Exam date editor
+ * - EXP_RULES editor (for testing)
+ * 
+ * Design System:
+ * - Neon Brutalist aesthetic with zero shadows
+ * - Color tokens from theme/colors.ts
+ * - DM Sans for UI text, JetBrains Mono for data
+ * - 1px borders, 20px border radius
+ * - Minimum 44×44dp touch targets
+ */
 
 export const SettingsScreen: React.FC = () => {
   const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [powCompilerVisible, setPowCompilerVisible] = useState(false);
   const [expRulesModalVisible, setExpRulesModalVisible] = useState(false);
   const [examDateEditorVisible, setExamDateEditorVisible] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [maskedKey, setMaskedKey] = useState('');
   const [validating, setValidating] = useState(false);
-  const [reportMarkdown, setReportMarkdown] = useState('');
-  const [generatingReport, setGeneratingReport] = useState(false);
   const [transitModeEnabled, setTransitModeEnabled] = useState(true);
   const [expRules, setExpRules] = useState<Record<EXPRuleKey, number>>({
     academic_task: 10,
@@ -117,28 +138,6 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
-  const generateReport = async () => {
-    try {
-      setGeneratingReport(true);
-      const report = await proofOfWorkCompiler.generateMonthlyReport();
-      setReportMarkdown(report.markdown);
-      setReportModalVisible(true);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to generate report');
-    } finally {
-      setGeneratingReport(false);
-    }
-  };
-
-  const copyReport = async () => {
-    try {
-      await proofOfWorkCompiler.copyToClipboard(reportMarkdown);
-      Alert.alert('Success', 'Report copied to clipboard');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to copy to clipboard');
-    }
-  };
-
   const exportData = async () => {
     try {
       const jsonData = await databaseManager.export();
@@ -225,6 +224,9 @@ export const SettingsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.settingButton}
             onPress={() => setApiKeyModalVisible(true)}
+            accessible={true}
+            accessibilityLabel="Configure Gemini API Key"
+            accessibilityRole="button"
           >
             <Text style={styles.settingButtonText}>CONFIGURE</Text>
           </TouchableOpacity>
@@ -245,6 +247,9 @@ export const SettingsScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.settingButton}
             onPress={openExpRulesEditor}
+            accessible={true}
+            accessibilityLabel="Edit EXP Rules"
+            accessibilityRole="button"
           >
             <Text style={styles.settingButtonText}>EDIT</Text>
           </TouchableOpacity>
@@ -266,8 +271,8 @@ export const SettingsScreen: React.FC = () => {
           <Switch
             value={transitModeEnabled}
             onValueChange={toggleTransitMode}
-            trackColor={{ false: '#1a1a1a', true: '#FFB800' }}
-            thumbColor={transitModeEnabled ? '#ffffff' : '#666666'}
+            trackColor={{ false: colors.border, true: colors.caution }}
+            thumbColor={transitModeEnabled ? colors.text : colors.textSecondary}
           />
         </View>
       </View>
@@ -280,6 +285,9 @@ export const SettingsScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() => setExamDateEditorVisible(true)}
+          accessible={true}
+          accessibilityLabel="Edit Exam Dates"
+          accessibilityRole="button"
         >
           <View style={styles.actionInfo}>
             <Text style={styles.actionLabel}>Edit Exam Dates</Text>
@@ -297,20 +305,18 @@ export const SettingsScreen: React.FC = () => {
         
         <TouchableOpacity
           style={styles.actionCard}
-          onPress={generateReport}
-          disabled={generatingReport}
+          onPress={() => setPowCompilerVisible(true)}
+          accessible={true}
+          accessibilityLabel="Generate Progress Report"
+          accessibilityRole="button"
         >
           <View style={styles.actionInfo}>
-            <Text style={styles.actionLabel}>Generate Monthly Report</Text>
+            <Text style={styles.actionLabel}>Generate Progress Report</Text>
             <Text style={styles.actionDescription}>
               Export completed skill nodes as Markdown
             </Text>
           </View>
-          {generatingReport ? (
-            <ActivityIndicator color="#FF0000" />
-          ) : (
-            <Text style={styles.actionArrow}>→</Text>
-          )}
+          <Text style={styles.actionArrow}>→</Text>
         </TouchableOpacity>
       </View>
 
@@ -318,7 +324,13 @@ export const SettingsScreen: React.FC = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>DATA MANAGEMENT</Text>
         
-        <TouchableOpacity style={styles.actionCard} onPress={exportData}>
+        <TouchableOpacity 
+          style={styles.actionCard} 
+          onPress={exportData}
+          accessible={true}
+          accessibilityLabel="Export Data"
+          accessibilityRole="button"
+        >
           <View style={styles.actionInfo}>
             <Text style={styles.actionLabel}>Export Data</Text>
             <Text style={styles.actionDescription}>
@@ -385,7 +397,7 @@ export const SettingsScreen: React.FC = () => {
                 disabled={validating}
               >
                 {validating ? (
-                  <ActivityIndicator color="#000" />
+                  <ActivityIndicator color={colors.void} />
                 ) : (
                   <Text style={styles.buttonText}>Save</Text>
                 )}
@@ -395,34 +407,22 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Report Modal */}
-      <Modal visible={reportModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, styles.reportModal]}>
-            <Text style={styles.modalTitle}>Progress Report</Text>
-            
-            <ScrollView style={styles.reportPreview}>
-              <Text style={styles.reportText}>{reportMarkdown}</Text>
-            </ScrollView>
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setReportModalVisible(false)}
-              >
-                <Text style={styles.buttonText}>Close</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={copyReport}
-              >
-                <Text style={styles.buttonText}>Copy</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Exam Date Editor Modal */}
+      <ExamDateEditor
+        visible={examDateEditorVisible}
+        onClose={() => setExamDateEditorVisible(false)}
+        onSave={() => {
+          // Optionally refresh exam data in parent components
+          console.log('Exam dates updated');
+        }}
+      />
+
+      {/* PoW Compiler Modal */}
+      {/* Requirement 36.1: PoW_Compiler accessible from Settings tab */}
+      <PoWCompiler
+        visible={powCompilerVisible}
+        onClose={() => setPowCompilerVisible(false)}
+      />
 
       {/* EXP Rules Editor Modal */}
       <Modal visible={expRulesModalVisible} transparent animationType="slide">
@@ -525,16 +525,6 @@ export const SettingsScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-
-      {/* Exam Date Editor Modal */}
-      <ExamDateEditor
-        visible={examDateEditorVisible}
-        onClose={() => setExamDateEditorVisible(false)}
-        onSave={() => {
-          // Optionally refresh exam data in parent components
-          console.log('Exam dates updated');
-        }}
-      />
     </ScrollView>
   );
 };
@@ -542,7 +532,7 @@ export const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void, // Pure black screen background
   },
   content: {
     padding: 20,
@@ -554,13 +544,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text, // White text
     letterSpacing: 2,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 10,
-    color: '#666666',
+    color: colors.textSecondary, // Gray text for secondary content
     letterSpacing: 1.5,
     fontWeight: '700',
   },
@@ -570,82 +560,88 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text,
     letterSpacing: 1.5,
     marginBottom: 16,
   },
   settingCard: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    backgroundColor: colors.surface, // Dark gray card background
+    borderRadius: 20, // Bento grid 20px border radius
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border, // 1px border
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 44, // Minimum 44dp touch target
   },
   settingInfo: {
     flex: 1,
   },
   settingLabel: {
     fontSize: 14,
-    color: '#ffffff',
+    color: colors.text,
     fontWeight: '700',
     marginBottom: 4,
   },
   settingValue: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.textSecondary,
     fontFamily: 'monospace',
   },
   settingButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: colors.active, // Neon cyan for interactive elements
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 9999,
+    minHeight: 44, // Minimum 44dp touch target
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   settingButtonText: {
-    color: '#000000',
+    color: colors.void, // Black text on neon background
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
   },
   actionCard: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    minHeight: 44,
   },
   actionInfo: {
     flex: 1,
   },
   actionLabel: {
     fontSize: 14,
-    color: '#ffffff',
+    color: colors.text,
     fontWeight: '700',
     marginBottom: 4,
   },
   actionDescription: {
     fontSize: 11,
-    color: '#666666',
+    color: colors.textSecondary,
     lineHeight: 16,
   },
   actionArrow: {
     fontSize: 24,
-    color: '#FF0000',
+    color: colors.active, // Neon cyan for interactive indicator
     fontWeight: '900',
   },
   infoCard: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -653,12 +649,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.textSecondary,
     fontWeight: '700',
   },
   infoValue: {
     fontSize: 12,
-    color: '#ffffff',
+    color: colors.text,
     fontWeight: '700',
   },
   modalOverlay: {
@@ -669,11 +665,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '85%',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   reportModal: {
     height: '80%',
@@ -681,37 +677,37 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#ffffff',
+    color: colors.text,
     marginBottom: 4,
     letterSpacing: 1,
   },
   modalSubtitle: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.textSecondary,
     marginBottom: 20,
     lineHeight: 18,
   },
   input: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     borderRadius: 16,
     padding: 16,
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 15,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   reportPreview: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
   reportText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 12,
     fontFamily: 'monospace',
     lineHeight: 20,
@@ -725,18 +721,21 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 9999,
     alignItems: 'center',
+    minHeight: 44, // Minimum 44dp touch target
   },
   cancelButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   resetButton: {
-    backgroundColor: '#FFB800',
+    backgroundColor: colors.caution, // Neon yellow for caution action
   },
   confirmButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: colors.active, // Neon cyan for primary action
   },
   buttonText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1,
@@ -750,19 +749,19 @@ const styles = StyleSheet.create({
   },
   ruleLabel: {
     fontSize: 12,
-    color: '#ffffff',
+    color: colors.text,
     fontWeight: '700',
     marginBottom: 8,
     letterSpacing: 0.5,
   },
   ruleInput: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.void,
     borderRadius: 12,
     padding: 14,
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 16,
     fontFamily: 'monospace',
     borderWidth: 1,
-    borderColor: '#1a1a1a',
+    borderColor: colors.border,
   },
 });

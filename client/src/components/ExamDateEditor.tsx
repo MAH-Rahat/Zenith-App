@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, Platform, TextInput } from 'react-native';
 import { databaseManager } from '../services/DatabaseManager';
+
+// Conditionally import DateTimePicker only for native platforms
+let DateTimePicker: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    DateTimePicker = require('@react-native-community/datetimepicker').default;
+  } catch (e) {
+    console.warn('DateTimePicker not available');
+  }
+}
 
 interface Exam {
   id: string;
@@ -62,7 +71,26 @@ export const ExamDateEditor: React.FC<ExamDateEditorProps> = ({ visible, onClose
   const openDatePicker = (exam: Exam) => {
     setSelectedExam(exam);
     setTempDate(new Date(exam.date));
-    setShowDatePicker(true);
+    
+    if (Platform.OS === 'web') {
+      // For web, we'll use a text input with date type
+      // The date picker modal will show the input
+      setShowDatePicker(true);
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
+  /**
+   * Handle date change from web input
+   */
+  const handleWebDateChange = (dateString: string) => {
+    if (selectedExam && dateString) {
+      const selectedDate = new Date(dateString);
+      saveExamDate(selectedExam.id, selectedDate);
+      setShowDatePicker(false);
+      setSelectedExam(null);
+    }
   };
 
   /**
@@ -175,7 +203,28 @@ export const ExamDateEditor: React.FC<ExamDateEditorProps> = ({ visible, onClose
           )}
 
           {/* Date Picker */}
-          {showDatePicker && (
+          {showDatePicker && Platform.OS === 'web' && selectedExam && (
+            <View style={styles.datePickerContainer}>
+              <Text style={styles.datePickerLabel}>
+                Select new date for {selectedExam.name}:
+              </Text>
+              <TextInput
+                style={styles.webDateInput}
+                value={tempDate.toISOString().split('T')[0]}
+                onChangeText={handleWebDateChange}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#666666"
+              />
+              <TouchableOpacity
+                style={[styles.datePickerButton, styles.cancelButton]}
+                onPress={cancelDateChange}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {showDatePicker && Platform.OS !== 'web' && DateTimePicker && (
             <View style={styles.datePickerContainer}>
               <DateTimePicker
                 value={tempDate}
@@ -302,6 +351,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#1a1a1a',
+  },
+  datePickerLabel: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  webDateInput: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 12,
+    padding: 12,
+    color: '#ffffff',
+    fontSize: 14,
+    fontFamily: 'monospace',
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    marginBottom: 12,
   },
   datePickerButtons: {
     flexDirection: 'row',

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { databaseManager } from '../services/DatabaseManager';
 import { examAlertService } from '../services/ExamAlertService';
+import { notificationService } from '../services/NotificationService';
 
 interface Exam {
   id: string;
@@ -83,6 +84,10 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onExamCritical }) 
       }
 
       await loadExams();
+      
+      // Schedule notifications for all exams
+      // Requirement 63.2: Schedule local notifications for exam countdowns
+      await scheduleExamNotifications();
     } catch (error) {
       console.error('Failed to initialize exams:', error);
       setLoading(false);
@@ -142,6 +147,33 @@ export const ExamCountdown: React.FC<ExamCountdownProps> = ({ onExamCritical }) 
     } catch (error) {
       console.error('Failed to load exams:', error);
       setLoading(false);
+    }
+  };
+
+  /**
+   * Schedule notifications for all exams (7 days before)
+   * Requirement 63.2: Schedule local notifications for exam countdowns
+   */
+  const scheduleExamNotifications = async () => {
+    try {
+      const examData = await databaseManager.query<{
+        id: string;
+        name: 'CSE321' | 'CSE341' | 'CSE422' | 'CSE423';
+        date: string;
+      }>('SELECT id, name, date FROM exams');
+
+      for (const exam of examData) {
+        const examDate = new Date(exam.date);
+        await notificationService.scheduleExamCountdownNotification(
+          exam.name,
+          examDate,
+          exam.id
+        );
+      }
+
+      console.log('Exam countdown notifications scheduled for all exams');
+    } catch (error) {
+      console.error('Failed to schedule exam notifications:', error);
     }
   };
 

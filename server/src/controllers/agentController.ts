@@ -490,76 +490,160 @@ export const architectAgent = async (
   try {
     const startTime = Date.now();
     
-    // Validate request body
-    const { input, completedQuests, completedSkills, portfolioProjects, jobPostingKeywords } = req.body;
+    // Check if this is a weekly reflection request
+    const isWeeklyReflection = req.path.includes('/weekly-reflection');
     
-    if (!input || typeof input !== 'string' || input.trim().length === 0) {
-      throw new AppError(400, 'INVALID_INPUT', 'Input text is required');
-    }
-    
-    if (!Array.isArray(completedQuests)) {
-      throw new AppError(400, 'INVALID_INPUT', 'completedQuests must be an array');
-    }
-    
-    if (!Array.isArray(completedSkills)) {
-      throw new AppError(400, 'INVALID_INPUT', 'completedSkills must be an array');
-    }
-    
-    if (!Array.isArray(portfolioProjects)) {
-      throw new AppError(400, 'INVALID_INPUT', 'portfolioProjects must be an array');
-    }
-
-    // Get user ID from authenticated request (Requirement 64.4)
-    const userId = req.userId;
-    
-    if (!userId) {
-      throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
-    }
-
-    console.log(`🏗️ Processing ARCHITECT request for user ${userId}`);
-    console.log(`📊 Career data: quests=${completedQuests.length}, skills=${completedSkills.length}, projects=${portfolioProjects.length}`);
-
-    // Import ARCHITECT agent
-    const { ArchitectAgent: ArchitectImpl } = await import('../services/agents/ArchitectAgent');
-
-    // Process through ARCHITECT agent
-    const result = await ArchitectImpl.process({
-      userId,
-      userInput: input,
-      completedQuests,
-      completedSkills,
-      portfolioProjects,
-      jobPostingKeywords: jobPostingKeywords || [],
-    });
-
-    const processingTimeMs = Date.now() - startTime;
-
-    // Log interaction to database (Requirement 64.4)
-    try {
-      await AgentInteraction.create({
-        userId,
-        agent: 'architect',
-        input,
-        output: result,
-        timestamp: new Date(),
-        processingTimeMs,
-      });
+    if (isWeeklyReflection) {
+      // Handle weekly reflection request
+      const { accomplishments, avoided_tasks, learning, challenges, next_week_priorities, exp_delta } = req.body;
       
-      console.log(`✅ ARCHITECT interaction logged (${processingTimeMs}ms)`);
-    } catch (logError) {
-      // Don't fail the request if logging fails
-      console.error('Failed to log ARCHITECT interaction:', logError);
-    }
+      // Validate all required fields
+      if (!accomplishments || typeof accomplishments !== 'string' || accomplishments.trim().length === 0) {
+        throw new AppError(400, 'INVALID_INPUT', 'accomplishments is required');
+      }
+      
+      if (!avoided_tasks || typeof avoided_tasks !== 'string' || avoided_tasks.trim().length === 0) {
+        throw new AppError(400, 'INVALID_INPUT', 'avoided_tasks is required');
+      }
+      
+      if (!learning || typeof learning !== 'string' || learning.trim().length === 0) {
+        throw new AppError(400, 'INVALID_INPUT', 'learning is required');
+      }
+      
+      if (!challenges || typeof challenges !== 'string' || challenges.trim().length === 0) {
+        throw new AppError(400, 'INVALID_INPUT', 'challenges is required');
+      }
+      
+      if (!next_week_priorities || typeof next_week_priorities !== 'string' || next_week_priorities.trim().length === 0) {
+        throw new AppError(400, 'INVALID_INPUT', 'next_week_priorities is required');
+      }
+      
+      if (typeof exp_delta !== 'number') {
+        throw new AppError(400, 'INVALID_INPUT', 'exp_delta must be a number');
+      }
 
-    // Return response
-    res.json({
-      success: true,
-      data: {
-        agent: 'ARCHITECT',
-        result,
-        processingTimeMs,
-      },
-    });
+      // Get user ID from authenticated request
+      const userId = req.userId;
+      
+      if (!userId) {
+        throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+      }
+
+      console.log(`🏗️ Processing ARCHITECT Weekly Reflection for user ${userId}`);
+      console.log(`📊 EXP Delta: ${exp_delta > 0 ? '+' : ''}${exp_delta}`);
+
+      // Import ARCHITECT agent
+      const { ArchitectAgent: ArchitectImpl } = await import('../services/agents/ArchitectAgent');
+
+      // Generate Weekly Growth Report
+      const report = await ArchitectImpl.generateWeeklyGrowthReport({
+        accomplishments,
+        avoided_tasks,
+        learning,
+        challenges,
+        next_week_priorities,
+        exp_delta,
+      });
+
+      const processingTimeMs = Date.now() - startTime;
+
+      // Log interaction to database
+      try {
+        await AgentInteraction.create({
+          userId,
+          agent: 'architect',
+          input: `Weekly Reflection: ${accomplishments.substring(0, 100)}...`,
+          output: report,
+          timestamp: new Date(),
+          processingTimeMs,
+        });
+        
+        console.log(`✅ ARCHITECT Weekly Reflection logged (${processingTimeMs}ms)`);
+      } catch (logError) {
+        console.error('Failed to log ARCHITECT interaction:', logError);
+      }
+
+      // Return response
+      res.json({
+        success: true,
+        data: {
+          agent: 'ARCHITECT',
+          report,
+          processingTimeMs,
+        },
+      });
+    } else {
+      // Handle regular ARCHITECT request
+      const { input, completedQuests, completedSkills, portfolioProjects, jobPostingKeywords } = req.body;
+      
+      if (!input || typeof input !== 'string' || input.trim().length === 0) {
+        throw new AppError(400, 'INVALID_INPUT', 'Input text is required');
+      }
+      
+      if (!Array.isArray(completedQuests)) {
+        throw new AppError(400, 'INVALID_INPUT', 'completedQuests must be an array');
+      }
+      
+      if (!Array.isArray(completedSkills)) {
+        throw new AppError(400, 'INVALID_INPUT', 'completedSkills must be an array');
+      }
+      
+      if (!Array.isArray(portfolioProjects)) {
+        throw new AppError(400, 'INVALID_INPUT', 'portfolioProjects must be an array');
+      }
+
+      // Get user ID from authenticated request (Requirement 64.4)
+      const userId = req.userId;
+      
+      if (!userId) {
+        throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+      }
+
+      console.log(`🏗️ Processing ARCHITECT request for user ${userId}`);
+      console.log(`📊 Career data: quests=${completedQuests.length}, skills=${completedSkills.length}, projects=${portfolioProjects.length}`);
+
+      // Import ARCHITECT agent
+      const { ArchitectAgent: ArchitectImpl } = await import('../services/agents/ArchitectAgent');
+
+      // Process through ARCHITECT agent
+      const result = await ArchitectImpl.process({
+        userId,
+        userInput: input,
+        completedQuests,
+        completedSkills,
+        portfolioProjects,
+        jobPostingKeywords: jobPostingKeywords || [],
+      });
+
+      const processingTimeMs = Date.now() - startTime;
+
+      // Log interaction to database (Requirement 64.4)
+      try {
+        await AgentInteraction.create({
+          userId,
+          agent: 'architect',
+          input,
+          output: result,
+          timestamp: new Date(),
+          processingTimeMs,
+        });
+        
+        console.log(`✅ ARCHITECT interaction logged (${processingTimeMs}ms)`);
+      } catch (logError) {
+        // Don't fail the request if logging fails
+        console.error('Failed to log ARCHITECT interaction:', logError);
+      }
+
+      // Return response
+      res.json({
+        success: true,
+        data: {
+          agent: 'ARCHITECT',
+          result,
+          processingTimeMs,
+        },
+      });
+    }
   } catch (error) {
     next(error);
   }
