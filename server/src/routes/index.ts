@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './authRoutes';
+import agentRoutes from './agentRoutes';
 
 const router = Router();
 
@@ -16,5 +17,8 @@ router.get('/health', (_req, res) => {
 
 // Authentication routes
 router.use('/auth', authRoutes);
+
+// AI Agent routes
+router.use('/agents', agentRoutes);
 
 export default router;

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
 import { config } from '../config';
 import { AppError } from '../middleware/errorHandler';
-import { redisClient } from '../config/redis';
+import { getRedisClient } from '../config/redis';
 
 const SALT_ROUNDS = 10;
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -43,7 +43,8 @@ function generateRefreshToken(userId: string, email: string): string {
  */
 async function storeRefreshToken(userId: string, token: string): Promise<void> {
   const key = `refresh_token:${userId}`;
-  await redisClient.set(key, token, { EX: REFRESH_TOKEN_TTL });
+  const redis = getRedisClient();
+  await redis.set(key, token, { EX: REFRESH_TOKEN_TTL });
 }
 
 /**
@@ -51,7 +52,8 @@ async function storeRefreshToken(userId: string, token: string): Promise<void> {
  */
 async function revokeRefreshToken(userId: string): Promise<void> {
   const key = `refresh_token:${userId}`;
-  await redisClient.del(key);
+  const redis = getRedisClient();
+  await redis.del(key);
 }
 
 /**
@@ -59,7 +61,8 @@ async function revokeRefreshToken(userId: string): Promise<void> {
  */
 async function verifyRefreshToken(userId: string, token: string): Promise<boolean> {
   const key = `refresh_token:${userId}`;
-  const storedToken = await redisClient.get(key);
+  const redis = getRedisClient();
+  const storedToken = await redis.get(key);
   return storedToken === token;
 }
 
