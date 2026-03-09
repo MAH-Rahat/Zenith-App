@@ -295,22 +295,80 @@ export class ArchitectAgent {
  * FORGE Agent - Project Accountability
  * Handles project tracking, GitHub integration, deployment tracking
  * 
- * Requirements: 40.8
+ * Requirements: 53.1-53.7, 54.1-54.6, 55.1-55.5
  */
 export class ForgeAgent {
   static async process(input: AgentInput): Promise<AgentOutput> {
-    // TODO: Implement full FORGE agent in Task 34
+    // Import the full FORGE implementation
+    const { ForgeAgent: ForgeImpl } = await import('./ForgeAgent');
+    
+    // Parse context for project data
+    const forgeInput = {
+      userId: input.userId,
+      userInput: input.input,
+      githubUsername: input.context?.githubUsername || '',
+      githubRepos: input.context?.githubRepos || [],
+      userDesignExperience: input.context?.userDesignExperience || 5,
+    };
+
+    // Process through FORGE agent
+    const result = await ForgeImpl.process(forgeInput);
+
+    // Format response with relentless tech lead persona
+    const response = this.formatForgeResponse(result);
+
     return {
       agent: 'FORGE',
-      response: `[PLACEHOLDER] FORGE received: "${input.input}". Full implementation coming in Task 34.`,
-      data: {
-        active_projects: [],
-        recent_commits: [],
-        deployment_status: 'UNKNOWN',
-        accountability_score: 0,
-      },
+      response,
+      data: result,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Format FORGE response with relentless tech lead persona
+   */
+  private static formatForgeResponse(data: any): string {
+    const parts: string[] = [];
+
+    // Started vs Shipped ratio
+    parts.push(`Started vs Shipped: ${data.started_vs_shipped_ratio}`);
+
+    // Shipped this month
+    parts.push(`Shipped This Month: ${data.shipped_this_month}`);
+
+    // Design leverage score
+    parts.push(`Design Leverage Score: ${data.design_leverage_score}/100`);
+
+    // Active projects summary
+    if (data.active_projects && data.active_projects.length > 0) {
+      const activeCount = data.active_projects.filter((p: any) => p.status === 'active').length;
+      const abandonedCount = data.active_projects.filter((p: any) => p.status === 'abandoned').length;
+      const shippedCount = data.active_projects.filter((p: any) => p.status === 'shipped').length;
+      
+      parts.push(`\nProjects: ${activeCount} active, ${shippedCount} shipped, ${abandonedCount} abandoned`);
+
+      // List abandoned projects
+      if (abandonedCount > 0) {
+        const abandoned = data.active_projects.filter((p: any) => p.status === 'abandoned').slice(0, 3);
+        parts.push('\nAbandoned Repos:');
+        abandoned.forEach((p: any) => {
+          parts.push(`- ${p.name} (${p.daysInactive} days inactive)`);
+        });
+      }
+    }
+
+    // Suggested next build
+    if (data.suggested_next_build) {
+      parts.push(`\nSuggested Next Build: ${data.suggested_next_build}`);
+    }
+
+    // Accountability message
+    if (data.accountability_message) {
+      parts.push(`\n${data.accountability_message}`);
+    }
+
+    return parts.join('\n');
   }
 }
 

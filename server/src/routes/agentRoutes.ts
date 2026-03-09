@@ -8,6 +8,7 @@ import {
   sentinelAgent,
   brokerAgent,
   architectAgent,
+  forgeAgent,
 } from '../controllers/agentController';
 
 const router = Router();
@@ -90,6 +91,20 @@ router.post('/broker', authenticate, brokerAgent);
  * Requirements: 49.1-49.8, 50.1-50.5, 51.1-51.5, 52.1-52.5, 82.1-82.4, 89.1-89.5, 64.2, 64.4
  */
 router.post('/architect', authenticate, architectAgent);
+
+/**
+ * POST /api/agents/forge
+ * 
+ * FORGE agent endpoint - Project accountability and GitHub tracking
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - githubUsername: string (required) - GitHub username
+ * - githubRepos: GitHubRepo[] (optional) - GitHub repositories array
+ * 
+ * Requirements: 53.6, 53.7, 64.2, 64.4
+ */
+router.post('/forge', authenticate, forgeAgent);
 
 /**
  * GET /api/agents/interactions

@@ -564,3 +564,94 @@ export const architectAgent = async (
     next(error);
   }
 };
+
+/**
+ * POST /api/agents/forge
+ * 
+ * FORGE agent endpoint - Project accountability and GitHub tracking
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - githubUsername: string (required) - GitHub username
+ * - githubRepos: GitHubRepo[] (optional) - GitHub repositories array
+ * 
+ * Requirements: 53.6, 53.7, 64.2, 64.4
+ */
+export const forgeAgent = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const startTime = Date.now();
+    
+    // Validate request body
+    const { input, githubUsername, githubRepos } = req.body;
+    
+    if (!input || typeof input !== 'string' || input.trim().length === 0) {
+      throw new AppError(400, 'INVALID_INPUT', 'Input text is required');
+    }
+    
+    if (!githubUsername || typeof githubUsername !== 'string' || githubUsername.trim().length === 0) {
+      throw new AppError(400, 'INVALID_INPUT', 'githubUsername is required');
+    }
+    
+    if (githubRepos && !Array.isArray(githubRepos)) {
+      throw new AppError(400, 'INVALID_INPUT', 'githubRepos must be an array');
+    }
+
+    // Get user ID from authenticated request (Requirement 64.4)
+    const userId = req.userId;
+    
+    if (!userId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+    }
+
+    console.log(`🔨 Processing FORGE request for user ${userId}`);
+    console.log(`📊 GitHub data: username=${githubUsername}, repos=${githubRepos?.length || 'fetching'}`);
+
+    // Import FORGE agent
+    const { ForgeAgent: ForgeImpl } = await import('../services/agents/ForgeAgent');
+
+    // Process through FORGE agent
+    const result = await ForgeImpl.process({
+      userId,
+      userInput: input,
+      githubUsername,
+      githubRepos: githubRepos || [],
+      userDesignExperience: 5, // User has 5 years of graphic design experience
+    });
+
+    const processingTimeMs = Date.now() - startTime;
+
+    // Log interaction to database (Requirement 64.4)
+    try {
+      await AgentInteraction.create({
+        userId,
+        agent: 'forge',
+        input,
+        output: result,
+        timestamp: new Date(),
+        processingTimeMs,
+      });
+      
+      console.log(`✅ FORGE interaction logged (${processingTimeMs}ms)`);
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Failed to log FORGE interaction:', logError);
+    }
+
+    // Return response
+    res.json({
+      success: true,
+      data: {
+        agent: 'FORGE',
+        result,
+        processingTimeMs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

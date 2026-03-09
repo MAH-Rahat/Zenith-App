@@ -29,6 +29,10 @@ export const config = {
     apiKey: process.env.EXCHANGE_RATE_API_KEY || 'mock',
   },
   
+  github: {
+    token: process.env.GITHUB_TOKEN || '',
+  },
+  
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),

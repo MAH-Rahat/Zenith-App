@@ -153,6 +153,20 @@ export class CacheService {
   }
 
   /**
+   * Cache GitHub data (24 hours TTL for FORGE agent)
+   */
+  static async cacheGitHubData(cacheKey: string, data: any): Promise<void> {
+    await this.set(cacheKey, data, 86400); // 24 hours
+  }
+
+  /**
+   * Get cached GitHub data
+   */
+  static async getCachedGitHubData<T>(cacheKey: string): Promise<T | null> {
+    return await this.get<T>(cacheKey);
+  }
+
+  /**
    * Invalidate GitHub cache for a specific user
    */
   static async invalidateGitHubCache(username?: string): Promise<void> {
