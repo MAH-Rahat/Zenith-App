@@ -25,11 +25,15 @@ export const config = {
     apiKey: process.env.GEMINI_API_KEY || '',
   },
   
+  exchangeRate: {
+    apiKey: process.env.EXCHANGE_RATE_API_KEY || 'mock',
+  },
+  
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
   },
-} as const;
+};
 
 // Export database and Redis connection functions
 export { connectDatabase, disconnectDatabase, isDbConnected } from './database';

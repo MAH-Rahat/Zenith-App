@@ -270,3 +270,200 @@ export const operatorAgent = async (
     next(error);
   }
 };
+
+/**
+ * POST /api/agents/sentinel
+ * 
+ * SENTINEL agent endpoint - Wellness enforcement and health monitoring
+ * 
+ * Body:
+ * - sleepHours: number (required) - Hours of sleep
+ * - hydrationML: number (required) - Hydration in milliliters
+ * - workoutCompleted: boolean (required) - Whether workout was completed
+ * - dietQuality: 'clean' | 'junk' (required) - Diet quality
+ * - consecutiveSedentaryDays: number (required) - Number of consecutive sedentary days
+ * 
+ * Requirements: 43.1-43.8, 44.1-44.5, 45.1-45.5, 81.1-81.4, 64.2, 64.4
+ */
+export const sentinelAgent = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const startTime = Date.now();
+    
+    // Validate request body
+    const { sleepHours, hydrationML, workoutCompleted, dietQuality, consecutiveSedentaryDays } = req.body;
+    
+    // Validate required fields
+    if (typeof sleepHours !== 'number') {
+      throw new AppError(400, 'INVALID_INPUT', 'sleepHours must be a number');
+    }
+    
+    if (typeof hydrationML !== 'number') {
+      throw new AppError(400, 'INVALID_INPUT', 'hydrationML must be a number');
+    }
+    
+    if (typeof workoutCompleted !== 'boolean') {
+      throw new AppError(400, 'INVALID_INPUT', 'workoutCompleted must be a boolean');
+    }
+    
+    if (dietQuality !== 'clean' && dietQuality !== 'junk') {
+      throw new AppError(400, 'INVALID_INPUT', 'dietQuality must be "clean" or "junk"');
+    }
+    
+    if (typeof consecutiveSedentaryDays !== 'number') {
+      throw new AppError(400, 'INVALID_INPUT', 'consecutiveSedentaryDays must be a number');
+    }
+
+    // Get user ID from authenticated request (Requirement 64.4)
+    const userId = req.userId;
+    
+    if (!userId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+    }
+
+    console.log(`💪 Processing SENTINEL request for user ${userId}`);
+    console.log(`📊 Health data: sleep=${sleepHours}h, hydration=${hydrationML}ml, workout=${workoutCompleted}, diet=${dietQuality}, sedentary=${consecutiveSedentaryDays}d`);
+
+    // Import SENTINEL agent
+    const { SentinelAgent: SentinelImpl } = await import('../services/agents/SentinelAgent');
+
+    // Process through SENTINEL agent
+    const result = await SentinelImpl.process({
+      userId,
+      sleepHours,
+      hydrationML,
+      workoutCompleted,
+      dietQuality,
+      consecutiveSedentaryDays,
+    });
+
+    const processingTimeMs = Date.now() - startTime;
+
+    // Log interaction to database (Requirement 64.4)
+    try {
+      await AgentInteraction.create({
+        userId,
+        agent: 'sentinel',
+        input: JSON.stringify({ sleepHours, hydrationML, workoutCompleted, dietQuality, consecutiveSedentaryDays }),
+        output: result,
+        timestamp: new Date(),
+        processingTimeMs,
+      });
+      
+      console.log(`✅ SENTINEL interaction logged (${processingTimeMs}ms)`);
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Failed to log SENTINEL interaction:', logError);
+    }
+
+    // Return response
+    res.json({
+      success: true,
+      data: {
+        agent: 'SENTINEL',
+        result,
+        processingTimeMs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/agents/broker
+ * 
+ * BROKER agent endpoint - Financial intelligence and BDT tracking
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - balance_bdt: number (required) - Current balance in BDT
+ * - income_sources: IncomeSource[] (required) - Income sources array
+ * - expenses: Expense[] (required) - Expenses array
+ * 
+ * Requirements: 46.1-46.9, 47.1-47.5, 48.1-48.5, 80.1-80.4, 64.2, 64.4
+ */
+export const brokerAgent = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const startTime = Date.now();
+    
+    // Validate request body
+    const { input, balance_bdt, income_sources, expenses } = req.body;
+    
+    if (!input || typeof input !== 'string' || input.trim().length === 0) {
+      throw new AppError(400, 'INVALID_INPUT', 'Input text is required');
+    }
+    
+    if (typeof balance_bdt !== 'number') {
+      throw new AppError(400, 'INVALID_INPUT', 'balance_bdt must be a number');
+    }
+    
+    if (!Array.isArray(income_sources)) {
+      throw new AppError(400, 'INVALID_INPUT', 'income_sources must be an array');
+    }
+    
+    if (!Array.isArray(expenses)) {
+      throw new AppError(400, 'INVALID_INPUT', 'expenses must be an array');
+    }
+
+    // Get user ID from authenticated request (Requirement 64.4)
+    const userId = req.userId;
+    
+    if (!userId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+    }
+
+    console.log(`💰 Processing BROKER request for user ${userId}`);
+    console.log(`📊 Financial data: balance=৳${balance_bdt}, income_sources=${income_sources.length}, expenses=${expenses.length}`);
+
+    // Import BROKER agent
+    const { BrokerAgent: BrokerImpl } = await import('../services/agents/BrokerAgent');
+
+    // Process through BROKER agent
+    const result = await BrokerImpl.process({
+      userId,
+      userInput: input,
+      balance_bdt,
+      income_sources,
+      expenses,
+    });
+
+    const processingTimeMs = Date.now() - startTime;
+
+    // Log interaction to database (Requirement 64.4)
+    try {
+      await AgentInteraction.create({
+        userId,
+        agent: 'broker',
+        input,
+        output: result,
+        timestamp: new Date(),
+        processingTimeMs,
+      });
+      
+      console.log(`✅ BROKER interaction logged (${processingTimeMs}ms)`);
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Failed to log BROKER interaction:', logError);
+    }
+
+    // Return response
+    res.json({
+      success: true,
+      data: {
+        agent: 'BROKER',
+        result,
+        processingTimeMs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

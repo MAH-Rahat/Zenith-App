@@ -95,21 +95,33 @@ export class OperatorAgent {
  * SENTINEL Agent - Wellness Enforcement
  * Handles health monitoring, sleep tracking, workout tracking
  * 
- * Requirements: 40.5
+ * Requirements: 43.1-43.8, 44.1-44.5, 45.1-45.5, 81.1-81.4, 64.2, 64.4
  */
 export class SentinelAgent {
   static async process(input: AgentInput): Promise<AgentOutput> {
-    // TODO: Implement full SENTINEL agent in Task 31
+    // Import the full SENTINEL implementation
+    const { SentinelAgent: SentinelImpl } = await import('./SentinelAgent');
+    
+    // Parse context for health data
+    const sentinelInput = {
+      userId: input.userId,
+      sleepHours: input.context?.sleepHours || 0,
+      hydrationML: input.context?.hydrationML || 0,
+      workoutCompleted: input.context?.workoutCompleted || false,
+      dietQuality: input.context?.dietQuality || 'clean',
+      consecutiveSedentaryDays: input.context?.consecutiveSedentaryDays || 0,
+    };
+
+    // Process through SENTINEL agent
+    const result = await SentinelImpl.process(sentinelInput);
+
+    // Use daily_report as the response
+    const response = result.daily_report;
+
     return {
       agent: 'SENTINEL',
-      response: `[PLACEHOLDER] SENTINEL received: "${input.input}". Full implementation coming in Task 31.`,
-      data: {
-        health_score: 0,
-        push_notification: null,
-        daily_report: '',
-        reprimand_triggered: false,
-        cognitive_risk: 'UNKNOWN',
-      },
+      response,
+      data: result,
       timestamp: new Date().toISOString(),
     };
   }
@@ -119,22 +131,88 @@ export class SentinelAgent {
  * BROKER Agent - Financial Intelligence
  * Handles money management, budgeting, BDT currency tracking
  * 
- * Requirements: 40.6
+ * Requirements: 46.1-46.9, 47.1-47.5, 48.1-48.5, 80.1-80.4, 64.2, 64.4
  */
 export class BrokerAgent {
   static async process(input: AgentInput): Promise<AgentOutput> {
-    // TODO: Implement full BROKER agent in Task 32
+    // Import the full BROKER implementation
+    const { BrokerAgent: BrokerImpl } = await import('./BrokerAgent');
+    
+    // Parse context for financial data
+    const brokerInput = {
+      userId: input.userId,
+      userInput: input.input,
+      balance_bdt: input.context?.balance_bdt || 0,
+      income_sources: input.context?.income_sources || [],
+      expenses: input.context?.expenses || [],
+    };
+
+    // Process through BROKER agent
+    const result = await BrokerImpl.process(brokerInput);
+
+    // Format response with quantitative analyst persona
+    const response = this.formatBrokerResponse(result);
+
     return {
       agent: 'BROKER',
-      response: `[PLACEHOLDER] BROKER received: "${input.input}". Full implementation coming in Task 32.`,
-      data: {
-        balance_bdt: 0,
-        monthly_expenses: 0,
-        budget_status: 'UNKNOWN',
-        recommendations: [],
-      },
+      response,
+      data: result,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Format BROKER response with quantitative analyst persona
+   */
+  private static formatBrokerResponse(data: any): string {
+    const parts: string[] = [];
+
+    // Financial summary
+    parts.push(`Balance: ৳${this.formatBDT(data.balance_bdt)}`);
+    parts.push(`Monthly Income: ৳${this.formatBDT(data.monthly_income_bdt)}`);
+    parts.push(`Burn Rate: ৳${this.formatBDT(data.burn_rate_bdt)}/month`);
+    parts.push(`Runway: ${data.runway_days === Infinity ? '∞' : data.runway_days} days`);
+    parts.push(`Savings Rate: ${data.savings_rate_percent}%`);
+
+    // Exchange rates
+    if (data.fx_rates) {
+      parts.push(`\nFX Rates${data.fx_rates.is_stale ? ' (stale)' : ''}:`);
+      parts.push(`- USD: $${(data.balance_bdt * data.fx_rates.BDT_USD).toFixed(2)}`);
+      parts.push(`- EUR: €${(data.balance_bdt * data.fx_rates.BDT_EUR).toFixed(2)}`);
+    }
+
+    // Alert
+    if (data.alert) {
+      parts.push(`\n⚠️ ${data.alert}`);
+    }
+
+    // Recommendations
+    if (data.recommendations && data.recommendations.length > 0) {
+      parts.push('\nRecommendations:');
+      data.recommendations.forEach((rec: string, index: number) => {
+        parts.push(`${index + 1}. ${rec}`);
+      });
+    }
+
+    return parts.join('\n');
+  }
+
+  /**
+   * Format BDT amount with Bangladeshi number formatting
+   */
+  private static formatBDT(amount: number): string {
+    const amountStr = Math.round(amount).toString();
+    
+    if (amountStr.length <= 3) {
+      return amountStr;
+    }
+
+    const lastThree = amountStr.slice(-3);
+    const remaining = amountStr.slice(0, -3);
+    
+    const formatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree;
+    
+    return formatted;
   }
 }
 
