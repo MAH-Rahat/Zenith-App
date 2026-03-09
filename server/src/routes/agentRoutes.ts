@@ -7,6 +7,7 @@ import {
   operatorAgent,
   sentinelAgent,
   brokerAgent,
+  architectAgent,
 } from '../controllers/agentController';
 
 const router = Router();
@@ -73,6 +74,22 @@ router.post('/sentinel', authenticate, sentinelAgent);
  * Requirements: 46.1-46.9, 47.1-47.5, 48.1-48.5, 80.1-80.4, 64.2, 64.4
  */
 router.post('/broker', authenticate, brokerAgent);
+
+/**
+ * POST /api/agents/architect
+ * 
+ * ARCHITECT agent endpoint - Career intelligence and skill gap analysis
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - completedQuests: Quest[] (required) - Completed quests array
+ * - completedSkills: SkillNode[] (required) - Completed skills array
+ * - portfolioProjects: Project[] (required) - Portfolio projects array
+ * - jobPostingKeywords: string[] (optional) - Job posting keywords for skill gap analysis
+ * 
+ * Requirements: 49.1-49.8, 50.1-50.5, 51.1-51.5, 52.1-52.5, 82.1-82.4, 89.1-89.5, 64.2, 64.4
+ */
+router.post('/architect', authenticate, architectAgent);
 
 /**
  * GET /api/agents/interactions

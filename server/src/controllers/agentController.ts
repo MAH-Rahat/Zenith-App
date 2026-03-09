@@ -467,3 +467,100 @@ export const brokerAgent = async (
     next(error);
   }
 };
+
+/**
+ * POST /api/agents/architect
+ * 
+ * ARCHITECT agent endpoint - Career intelligence and skill gap analysis
+ * 
+ * Body:
+ * - input: string (required) - Natural language text input
+ * - completedQuests: Quest[] (required) - Completed quests array
+ * - completedSkills: SkillNode[] (required) - Completed skills array
+ * - portfolioProjects: Project[] (required) - Portfolio projects array
+ * - jobPostingKeywords: string[] (optional) - Job posting keywords for skill gap analysis
+ * 
+ * Requirements: 49.1-49.8, 50.1-50.5, 51.1-51.5, 52.1-52.5, 82.1-82.4, 89.1-89.5, 64.2, 64.4
+ */
+export const architectAgent = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const startTime = Date.now();
+    
+    // Validate request body
+    const { input, completedQuests, completedSkills, portfolioProjects, jobPostingKeywords } = req.body;
+    
+    if (!input || typeof input !== 'string' || input.trim().length === 0) {
+      throw new AppError(400, 'INVALID_INPUT', 'Input text is required');
+    }
+    
+    if (!Array.isArray(completedQuests)) {
+      throw new AppError(400, 'INVALID_INPUT', 'completedQuests must be an array');
+    }
+    
+    if (!Array.isArray(completedSkills)) {
+      throw new AppError(400, 'INVALID_INPUT', 'completedSkills must be an array');
+    }
+    
+    if (!Array.isArray(portfolioProjects)) {
+      throw new AppError(400, 'INVALID_INPUT', 'portfolioProjects must be an array');
+    }
+
+    // Get user ID from authenticated request (Requirement 64.4)
+    const userId = req.userId;
+    
+    if (!userId) {
+      throw new AppError(401, 'UNAUTHORIZED', 'User not authenticated');
+    }
+
+    console.log(`🏗️ Processing ARCHITECT request for user ${userId}`);
+    console.log(`📊 Career data: quests=${completedQuests.length}, skills=${completedSkills.length}, projects=${portfolioProjects.length}`);
+
+    // Import ARCHITECT agent
+    const { ArchitectAgent: ArchitectImpl } = await import('../services/agents/ArchitectAgent');
+
+    // Process through ARCHITECT agent
+    const result = await ArchitectImpl.process({
+      userId,
+      userInput: input,
+      completedQuests,
+      completedSkills,
+      portfolioProjects,
+      jobPostingKeywords: jobPostingKeywords || [],
+    });
+
+    const processingTimeMs = Date.now() - startTime;
+
+    // Log interaction to database (Requirement 64.4)
+    try {
+      await AgentInteraction.create({
+        userId,
+        agent: 'architect',
+        input,
+        output: result,
+        timestamp: new Date(),
+        processingTimeMs,
+      });
+      
+      console.log(`✅ ARCHITECT interaction logged (${processingTimeMs}ms)`);
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Failed to log ARCHITECT interaction:', logError);
+    }
+
+    // Return response
+    res.json({
+      success: true,
+      data: {
+        agent: 'ARCHITECT',
+        result,
+        processingTimeMs,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

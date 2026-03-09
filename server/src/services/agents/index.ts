@@ -220,22 +220,74 @@ export class BrokerAgent {
  * ARCHITECT Agent - Career Intelligence
  * Handles job search, resume building, skill development
  * 
- * Requirements: 40.7
+ * Requirements: 49.1-49.8, 50.1-50.5, 51.1-51.5, 52.1-52.5, 82.1-82.4, 89.1-89.5
  */
 export class ArchitectAgent {
   static async process(input: AgentInput): Promise<AgentOutput> {
-    // TODO: Implement full ARCHITECT agent in Task 33
+    // Import the full ARCHITECT implementation
+    const { ArchitectAgent: ArchitectImpl } = await import('./ArchitectAgent');
+    
+    // Parse context for career data
+    const architectInput = {
+      userId: input.userId,
+      userInput: input.input,
+      completedQuests: input.context?.completedQuests || [],
+      completedSkills: input.context?.completedSkills || [],
+      portfolioProjects: input.context?.portfolioProjects || [],
+      jobPostingKeywords: input.context?.jobPostingKeywords || [],
+    };
+
+    // Process through ARCHITECT agent
+    const result = await ArchitectImpl.process(architectInput);
+
+    // Format response with Senior Staff Engineer persona
+    const response = this.formatArchitectResponse(result);
+
     return {
       agent: 'ARCHITECT',
-      response: `[PLACEHOLDER] ARCHITECT received: "${input.input}". Full implementation coming in Task 33.`,
-      data: {
-        career_stage: 'UNKNOWN',
-        skill_gaps: [],
-        learning_path: [],
-        job_recommendations: [],
-      },
+      response,
+      data: result,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Format ARCHITECT response with Senior Staff Engineer persona
+   */
+  private static formatArchitectResponse(data: any): string {
+    const parts: string[] = [];
+
+    // Career alignment score
+    parts.push(`Career Alignment: ${data.career_alignment_score}/100`);
+
+    // Portfolio health
+    parts.push(`Portfolio Health: ${data.portfolio_health}/100`);
+
+    // Graduation readiness
+    parts.push(`Graduation Readiness: ${data.graduation_readiness_score}/100`);
+
+    // Weekly critical path
+    if (data.weekly_critical_path && data.weekly_critical_path.length > 0) {
+      parts.push('\nWeekly Critical Path:');
+      data.weekly_critical_path.forEach((task: string, index: number) => {
+        parts.push(`${index + 1}. ${task}`);
+      });
+    }
+
+    // Top skill gaps
+    if (data.skill_gap_analysis && data.skill_gap_analysis.length > 0) {
+      parts.push('\nTop Skill Gaps:');
+      data.skill_gap_analysis.slice(0, 3).forEach((gap: any) => {
+        parts.push(`- ${gap.skill} (Market Demand: ${gap.marketDemand}, Impact: ${gap.impact})`);
+      });
+    }
+
+    // Hard truth (MANDATORY - Requirement 52.5)
+    if (data.hard_truth) {
+      parts.push(`\n${data.hard_truth}`);
+    }
+
+    return parts.join('\n');
   }
 }
 
